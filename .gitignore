@@ -1,0 +1,35 @@
+# ================= 开发工具缓存 / 无头浏览器 profile =================
+# 素材渲染（tools/render-assets.js）与截图脚本运行时产生的 Chrome 用户数据目录
+.assetgen-profile/
+**/.assetgen-profile/
+mf-assetgen-profile-*/
+chrome-profile/
+chromeprofile/
+cp-*/
+cp2-*/
+
+# ================= 依赖与运行时缓存 =================
+node_modules/
+package-lock.json
+__pycache__/
+*.pyc
+
+# ================= 临时脚本与中间产物 =================
+temp/
+*.tmp
+*.log
+*.err.txt
+
+# ================= 系统 / 编辑器 =================
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# ================= 说明 =================
+# 以下内容会正常提交，请勿忽略：
+#   index.html / css/ / js/ / assets/      游戏本体与全部 3D 素材
+#   tools/                                 素材渲染工具（开发用，不影响运行）
+#   screenshots/                           效果截图
+#   启动迷你牧场*.cmd                       Windows 本地启动器
