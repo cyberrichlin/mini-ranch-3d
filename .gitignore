@@ -1,31 +1,65 @@
-# ================= 开发工具缓存 / 无头浏览器 profile =================
-# 素材渲染（tools/render-assets.js）与截图脚本运行时产生的 Chrome 用户数据目录
+# ================= 无头浏览器 profile（开发工具运行时产生的 Chrome 用户数据目录） =================
+# tools/render-assets.js、tools/assetgen.* 与截图/回归脚本会临时创建 profile 目录
 .assetgen-profile/
 **/.assetgen-profile/
+*-profile/
+**/*-profile/
 mf-assetgen-profile-*/
+mf-*-profile*/
 chrome-profile/
 chromeprofile/
 cp-*/
 cp2-*/
+puppeteer-data/
+puppeteer_dev_*_profile-*/
 
 # ================= 依赖与运行时缓存 =================
 node_modules/
 package-lock.json
+npm-debug.log*
+yarn-error.log*
 __pycache__/
 *.pyc
+venv/
+.venv/
+*.egg-info/
 
 # ================= 临时脚本与中间产物 =================
 temp/
+tmp/
 *.tmp
+*.tmp.*
 *.log
 *.err.txt
+out-*.json
+debug-*.js
+shot-*.js
+test-*.js
+verify-*.js
+verify_*.js
+*.stackdump
+
+# ================= 备份 / 回滚文件 =================
+*.bak
+*.bak2
+*.backup
+*.old
+*.orig
+*.save
+*~
+backup_*/
+backup-*/
 
 # ================= 系统 / 编辑器 =================
 .DS_Store
 Thumbs.db
+ehthumbs.db
 desktop.ini
+$RECYCLE.BIN/
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # ================= 说明 =================
 # 以下内容会正常提交，请勿忽略：
@@ -33,3 +67,6 @@ desktop.ini
 #   tools/                                 素材渲染工具（开发用，不影响运行）
 #   screenshots/                           效果截图
 #   启动迷你牧场*.cmd                       Windows 本地启动器
+#   .nojekyll / LICENSE / README.md        Pages 与许可所需
+# 提示：本仓库不需要构建，无 package.json 依赖；若本地跑过开发脚本，
+#       请确认 *.profile 目录、temp/ 与备份文件未被提交。

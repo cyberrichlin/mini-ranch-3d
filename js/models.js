@@ -1034,6 +1034,124 @@
     return g;
   }
 
+  /* ======================= 围栏 / 加工机：5 级造型（对齐已确认造型稿） =======================
+   * 配色取自造型稿（02_fence_lv1-5.png / 03_machines_lv1-5.png），每级一套。
+   * 建模单位与造型稿一致：围栏宽 1.6、机器整体高约 1.3~1.7。
+   * ==================================================================================== */
+
+  var FENCE_COLORS = [
+    { post: 0xcaa878, rail: 0xd8bb92, cap: 0xb98f5f, trim: 0xa8804f },   // Lv1 米木
+    { post: 0xb5854e, rail: 0xc79d68, cap: 0x9c7038, trim: 0x8b6234 },   // Lv2 深木
+    { post: 0x9a6236, rail: 0xac7748, cap: 0x7c4e28, trim: 0x6e4522 },   // Lv3 棕木
+    { post: 0xf0e7d4, rail: 0xf7f1e3, cap: 0xded0b0, trim: 0xd8a83c },   // Lv4 白银+金饰
+    { post: 0x3c2e23, rail: 0x4b3a2c, cap: 0x2a201a, trim: 0xe8c052 }    // Lv5 黑檀+金饰
+  ];
+
+  var MACHINE_COLORS = {
+    cheese: {
+      body: [0xd98f4a, 0xe8a03c, 0xf0c04a, 0xd99a2b, 0xf5e6b8],
+      dark: [0xa8632a, 0xb57a24, 0xc08f1f, 0xa8711c, 0xc9a94e],
+      trim: [0x8a4f1f, 0x995c14, 0xa87413, 0x8f5c12, 0xe0b64a],
+      gem:  [0xd9a24a, 0xe8b45a, 0xf2cf72, 0xd9b04e, 0xf6e6a8]
+    },
+    mayo: {
+      body: [0xefe6d0, 0xf6e6b4, 0xf3d67a, 0xe8bc4c, 0xfbf3da],
+      dark: [0xc4b79b, 0xd0bd88, 0xcea94e, 0xc09633, 0xd9c79c],
+      trim: [0x9c8f74, 0xa08f60, 0xa8852c, 0x96701c, 0xe0b64a],
+      gem:  [0xd9cdb2, 0xe6d79c, 0xf2df90, 0xd9b45a, 0xf7ecc4]
+    },
+    yarn: {
+      body: [0x8ea8c8, 0x7fb6d9, 0x8b7fd9, 0xa06fc9, 0xd97fae],
+      dark: [0x6c8098, 0x5e8ba8, 0x6a60a8, 0x7c528f, 0xa85c82],
+      trim: [0x5a6b80, 0x4d7590, 0x574f90, 0x67447a, 0xe0b64a],
+      gem:  [0xb8cbe0, 0xa9d4ec, 0xb8afe8, 0xc7a3e0, 0xf2c2d8]
+    }
+  };
+
+  var MACHINE_KINDS = { cheesemaker: 'cheese', mayomaker: 'mayo', yarnmaker: 'yarn' };
+
+  function clampLv(lv) {
+    lv = Math.round(Number(lv) || 1);
+    if (lv < 1) lv = 1;
+    if (lv > 5) lv = 5;
+    return lv;
+  }
+
+  /** 围栏（单段，宽 1.6）：Lv 越高横栏越多、柱顶装饰越华丽 */
+  function buildFenceByLevel(lv) {
+    lv = clampLv(lv);
+    var c = FENCE_COLORS[lv - 1], g = new THREE.Group(), W = 1.6, i, x;
+    for (i = -1; i <= 1; i += 2) {
+      x = i * W / 2;
+      outline(part(g, box(0.2, 0.95, 0.2), toon(c.post), [x, 0.475, 0]), 1.06, 0x4a3b2f);
+      part(g, box(0.27, 0.1, 0.27), toon(c.cap), [x, 1.0, 0]);
+      if (lv >= 4) part(g, sph(0.09, 14), toon(c.trim), [x, 1.1, 0]);
+      if (lv >= 5) part(g, con(0.1, 0.2, 4), toon(c.trim), [x, 1.24, 0], null, [0, Math.PI / 4, 0]);
+    }
+    outline(part(g, box(1.62, 0.13, 0.11), toon(c.rail), [0, 0.72, 0]), 1.06, 0x4a3b2f);
+    outline(part(g, box(1.62, 0.13, 0.11), toon(c.rail), [0, 0.4, 0]), 1.06, 0x4a3b2f);
+    if (lv >= 2) part(g, box(1.62, 0.1, 0.09), toon(c.rail), [0, 0.2, 0]);
+    if (lv >= 3) part(g, box(1.62, 0.11, 0.1), toon(c.rail), [0, 0.56, 0]);
+    if (lv >= 4) {
+      for (i = -1; i <= 1; i += 2) part(g, box(0.07, 0.2, 0.16), toon(c.trim), [i * 0.42, 0.72, 0]);
+    }
+    if (lv >= 5) part(g, box(0.07, 1.0, 0.06), toon(c.trim), [0, 0.5, 0]);
+    iconShell(g);
+    return g;
+  }
+
+  /** 加工机（kind = cheese | mayo | yarn，正面朝 +z）：Lv 越高越多金色环带与宝石装饰 */
+  function buildMachineByLevel(kind, lv) {
+    lv = clampLv(lv);
+    var t = MACHINE_COLORS[kind] || MACHINE_COLORS.cheese;
+    var c = t.body[lv - 1], d = t.dark[lv - 1], tr = t.trim[lv - 1], gm = t.gem[lv - 1];
+    var g = new THREE.Group(), body;
+
+    part(g, box(1.04, 0.12, 1.04), toon(d), [0, 0.06, 0]);       /* 底座 */
+    body = part(g, box(0.86, 0.78, 0.86), toon(c), [0, 0.51, 0]);/* 机身 */
+    outline(body, 1.045, 0x4a4038);
+    part(g, box(0.92, 0.09, 0.92), toon(d), [0, 0.16, 0]);       /* 下箍 */
+    part(g, box(0.92, 0.09, 0.92), toon(d), [0, 0.86, 0]);       /* 上箍 */
+    part(g, cyl(0.4, 0.4, 0.14, 22), toon(d), [0, 0.94, 0]);     /* 顶盖 */
+    part(g, box(0.42, 0.24, 0.05), toon(tr), [0, 0.58, 0.44]);   /* 正面铭牌 */
+    part(g, cyl(0.035, 0.035, 0.26, 8), toon(tr), [0.46, 0.56, 0], null, [0, 0, Math.PI / 2]);
+    part(g, sph(0.07, 10), toon(tr), [0.6, 0.56, 0]);            /* 摇柄 */
+    part(g, cyl(0.075, 0.095, 0.32, 14), toon(d), [0.28, 1.05, 0.26]); /* 烟囱 */
+    part(g, cyl(0.08, 0.08, 0.22, 12), toon(tr), [-0.3, 0.3, 0.46], null, [Math.PI / 2, 0, 0]);
+
+    /* 顶部标识：区分三种机器 */
+    if (kind === 'cheese') {
+      part(g, con(0.24, 0.36, 3), toon(0xf7d774), [0, 1.28, 0], null, [0, Math.PI / 6, 0]);
+      part(g, sph(0.045, 8), toon(0xf7f1dc), [-0.1, 1.3, 0.1]);
+      part(g, sph(0.04, 8), toon(0xf7f1dc), [0.08, 1.34, 0.06]);
+    } else if (kind === 'mayo') {
+      part(g, sph(0.23, 16), toon(0xfdf6e0), [0, 1.26, 0], [1, 1.18, 1]);
+      part(g, cyl(0.09, 0.09, 0.06, 12), toon(0xf2d98a), [0, 1.06, 0]);
+    } else {
+      part(g, sph(0.22, 16), toon(0xf4f1ea), [0, 1.25, 0]);
+      part(g, torus(0.2, 0.03, Math.PI * 2), toon(0xd97fae), [0, 1.25, 0], null, [Math.PI / 2, 0, 0]);
+      part(g, torus(0.2, 0.03, Math.PI * 2), toon(0x8b7fd9), [0, 1.25, 0], null, [0, 0, Math.PI / 2]);
+    }
+
+    /* 等级装饰：随等级递增 */
+    if (lv >= 2) part(g, cyl(0.08, 0.08, 0.05, 14), toon(tr), [-0.3, 0.72, 0.44], null, [Math.PI / 2, 0, 0]);
+    if (lv >= 3) {
+      part(g, torus(0.49, 0.035, Math.PI * 2), toon(gm), [0, 0.51, 0], null, [Math.PI / 2, 0, 0]);
+      part(g, torus(0.44, 0.03, Math.PI * 2), toon(gm), [0, 0.28, 0], null, [Math.PI / 2, 0, 0]);
+    }
+    if (lv >= 4) {
+      part(g, sph(0.08, 12), toon(gm), [-0.46, 0.9, 0.3]);
+      part(g, sph(0.08, 12), toon(gm), [0.46, 0.9, -0.3]);
+    }
+    if (lv >= 5) {
+      part(g, con(0.13, 0.22, 4), toon(gm), [0, 1.5, 0], null, [0, Math.PI / 4, 0]);
+      part(g, sph(0.05, 10), toon(gm), [0, 1.62, 0]);
+      part(g, box(0.06, 0.3, 0.03), toon(tr), [0.4, 1.02, 0.4]);
+    }
+    iconShell(g);
+    return g;
+  }
+
   function buildBarn() {
     var g = new THREE.Group();
     var wall = part(g, box(0.9, 0.66, 0.72), toon(0xcf7a5c), [0, -0.3, 0]);
@@ -1203,6 +1321,11 @@
     return (TOOL_BUILD[key] || buildHoe)();
   };
 
+  /** 按等级构建围栏 / 加工机（lv = 1~5，越界自动收敛） */
+  M.buildFenceByLevel = function (lv) { return buildFenceByLevel(lv); };
+  M.buildMachineByLevel = function (kind, lv) { return buildMachineByLevel(kind, lv); };
+  M.MACHINE_KINDS = MACHINE_KINDS;
+
   /** 待生成资源清单 */
   M.assetList = function () {
     var list = [];
@@ -1237,7 +1360,11 @@
     });
     // 海产图鉴鱼类：正面侧视，保证「每种造型一眼可辨」
     FISH_KEYS.forEach(function (k) {
-      list.push({ kind: 'tool', key: 'fish_' + k, path: 'assets/icons/fish_' + k + '.png', size: 320, fit: 1.8, yaw: 0, cam: [0.05, 0.26, 1] });
+      list.push({ kind: 'tool', key: 'fish_' + k, path: 'assets/icons/fish_' + k + '.png', size: 320, fit: 1.7, yaw: 0, cam: [0.05, 0.12, 1] });
+    });
+    // 飞禽伙伴图标：老鹰 / 鸬鹚（正式 3D 模型渲染）
+    PET_KEYS.forEach(function (k) {
+      list.push({ kind: 'tool', key: 'pet_' + k, path: 'assets/icons/pet_' + k + '.png', size: 352, fit: 1.95, yaw: 0.5, cam: [0.06, 0.3, 1] });
     });
     // 商店商品 / 产物 / 海产小物
     GOODS_KEYS.forEach(function (k) {
@@ -1392,18 +1519,69 @@
 
   var FISH_SPEC = {
     crucian: {
-      name: '鲫鱼', color: 0xc6ccd8, belly: 0xf4f7fb, halfDepth: 0.12,
-      body: [[1.0, 0], [0.62, 0.38], [0.05, 0.48], [-0.5, 0.38], [-0.86, 0.16], [-0.92, 0], [-0.86, -0.16], [-0.5, -0.38], [0.05, -0.48], [0.62, -0.38]],
-      dorsal: [[0.42, 0.4], [0.05, 0.82], [-0.42, 0.32]], finColor: 0xaab3c2,
-      tail: 'fork', tailColor: 0xaab3c2, tailSize: 0.42, eye: [0.58, 0.1, 0.125],
-      extras: ['mouth']
+      // 鲫鱼：淡蓝灰侧扁小身，银白鳞点
+      name: '鲫鱼', color: 0x5f7ba6, belly: 0xdfe9f6, halfDepth: 0.13,
+      body: [[0.9, 0], [0.56, 0.38], [0.04, 0.5], [-0.46, 0.38], [-0.78, 0.16], [-0.84, 0], [-0.78, -0.16], [-0.46, -0.38], [0.04, -0.5], [0.56, -0.38]],
+      dorsal: [[0.36, 0.44], [0.02, 0.8], [-0.4, 0.34]], finColor: 0xa7b2c2,
+      tail: 'fork', tailColor: 0xa7b2c2, tailSize: 0.44, eye: [0.58, 0.1, 0.12],
+      scaleColor: 0xb9cbe0, extras: ['mouth', 'scale']
     },
     carp: {
-      name: '鲤鱼', color: 0xf0a03c, belly: 0xffe4bb, halfDepth: 0.15,
+      // 鲤鱼：橘黄发亮 + 深棕大斑块 + 一对口须 + 金色鳞
+      name: '鲤鱼', color: 0xd85a1e, belly: 0xffe4bd, halfDepth: 0.15,
       body: [[1.05, 0], [0.7, 0.34], [0.1, 0.44], [-0.5, 0.4], [-0.9, 0.18], [-0.96, 0], [-0.9, -0.18], [-0.5, -0.4], [0.1, -0.44], [0.7, -0.34]],
-      dorsal: [[0.5, 0.38], [0.1, 0.88], [-0.5, 0.32]], finColor: 0xee8a2c,
-      tail: 'fan', tailColor: 0xee8a2c, tailSize: 0.5, eye: [0.66, 0.1, 0.085],
-      extras: ['barbel', 'scale']
+      dorsal: [[0.5, 0.38], [0.1, 0.88], [-0.5, 0.32]], finColor: 0xd45a1c,
+      tail: 'fan', tailColor: 0xd45a1c, tailSize: 0.5, eye: [0.66, 0.1, 0.085],
+      scaleColor: 0xffd07a, blotchColor: 0x6b3f1c,
+      extras: ['barbel', 'scale', 'blotch']
+    },
+    grasscarp: {
+      // 草鱼：翠绿长流线身，浅绿鳞，圆头无斑
+      name: '草鱼', color: 0x4aab52, belly: 0xeaf6dc, halfDepth: 0.14,
+      body: [[1.22, 0], [0.82, 0.27], [0.1, 0.34], [-0.55, 0.3], [-0.95, 0.13], [-1.02, 0], [-0.95, -0.13], [-0.55, -0.3], [0.1, -0.34], [0.82, -0.27]],
+      dorsal: [[0.5, 0.3], [0.05, 0.7], [-0.55, 0.26]], finColor: 0x3f8f47,
+      tail: 'fork', tailColor: 0x3f8f47, tailSize: 0.48, eye: [0.72, 0.08, 0.085],
+      scaleColor: 0xd6efb8, extras: ['mouth', 'scale']
+    },
+    silvercarp: {
+      // 鲢鱼：银白圆润大头，小黑点
+      name: '鲢鱼', color: 0xc2d0dd, belly: 0xffffff, halfDepth: 0.17,
+      body: [[1.0, 0], [0.68, 0.44], [0.02, 0.64], [-0.5, 0.48], [-0.88, 0.2], [-0.94, 0], [-0.88, -0.2], [-0.5, -0.48], [0.02, -0.64], [0.68, -0.44]],
+      dorsal: [[0.38, 0.58], [0.0, 1.02], [-0.46, 0.44]], finColor: 0xdde6ee,
+      tail: 'fork', tailColor: 0xcfdae4, tailSize: 0.5, eye: [0.6, 0.2, 0.12],
+      extras: ['dots']
+    },
+    snakehead: {
+      // 黑鱼：深灰修长身 + 黑白横带 + 大嘴
+      name: '黑鱼', color: 0x2b3338, belly: 0xdde3e0, halfDepth: 0.13,
+      body: [[1.3, 0], [0.88, 0.24], [0.1, 0.3], [-0.58, 0.27], [-1.0, 0.12], [-1.1, 0], [-1.0, -0.12], [-0.58, -0.27], [0.1, -0.3], [0.88, -0.24]],
+      dorsal: [[0.64, 0.26], [0.1, 0.56], [-0.64, 0.2]], finColor: 0x262e34,
+      tail: 'fan', tailColor: 0x262e34, tailSize: 0.46, eye: [0.74, 0.06, 0.08],
+      bandColor: 0xc9d6d0, extras: ['band', 'bigmouth']
+    },
+    catfish: {
+      // 鲶鱼：灰褐光滑无鳞身 + 长须
+      name: '鲶鱼', color: 0x69543b, belly: 0xe6d9c0, halfDepth: 0.17,
+      body: [[1.1, 0.04], [0.76, 0.3], [0.1, 0.34], [-0.5, 0.28], [-0.9, 0.12], [-0.98, 0], [-0.9, -0.12], [-0.5, -0.28], [0.1, -0.34], [0.76, -0.3]],
+      dorsal: [[0.5, 0.26], [0.02, 0.5], [-0.5, 0.2]], finColor: 0x554430,
+      tail: 'fan', tailColor: 0x554430, tailSize: 0.42, eye: [0.66, 0.14, 0.075],
+      barbelColor: 0xd8c9a8, extras: ['barbel4', 'mouth']
+    },
+    yellowcat: {
+      // 黄颡鱼：金黄身 + 深色横带 + 背刺 + 须
+      name: '黄颡鱼', color: 0xf7cb1e, belly: 0xfbeaa8, halfDepth: 0.15,
+      body: [[1.02, 0], [0.68, 0.36], [0.05, 0.46], [-0.5, 0.38], [-0.86, 0.16], [-0.94, 0], [-0.86, -0.16], [-0.5, -0.38], [0.05, -0.46], [0.68, -0.36]],
+      dorsal: [[0.5, 0.42], [0.1, 0.92], [-0.5, 0.36]], finColor: 0xd8a411,
+      tail: 'fork', tailColor: 0xd8a411, tailSize: 0.46, eye: [0.62, 0.12, 0.09],
+      bandColor: 0x4a3a1a, barbelColor: 0xa88a44, extras: ['band', 'spike', 'barbel4']
+    },
+    mandarin: {
+      // 鳜鱼：褐黄底 + 大块深斑 + 高背刺 + 大嘴
+      name: '鳜鱼', color: 0x5d5c2b, belly: 0xece0b0, halfDepth: 0.17,
+      body: [[1.0, 0], [0.66, 0.46], [0.0, 0.6], [-0.5, 0.46], [-0.88, 0.2], [-0.94, 0], [-0.88, -0.2], [-0.5, -0.46], [0.0, -0.6], [0.66, -0.46]],
+      dorsal: [[0.5, 0.52], [0.05, 0.98], [-0.5, 0.44]], finColor: 0xb8862a,
+      tail: 'fan', tailColor: 0xb8862a, tailSize: 0.5, eye: [0.58, 0.16, 0.105],
+      blotchColor: 0x46331b, extras: ['blotch', 'bigmouth', 'spike']
     },
     trout: {
       name: '鳟鱼', color: 0x6fae9a, belly: 0xf2f7e8, halfDepth: 0.13,
@@ -1444,13 +1622,22 @@
     if (name === 'mouth') {
       part(g, sph(0.06, 8), ink(0x9a7a6a), [1.0, -0.05, 0], [1, 0.7, 0.85]);
     } else if (name === 'barbel') {
+      var baCol = sp.barbelColor === undefined ? 0xd98b2c : sp.barbelColor;
       for (s = -1; s <= 1; s += 2) {
-        part(g, cyl(0.014, 0.02, 0.36, 6), toon(0xd98b2c), [0.96, -0.1, s * 0.05], null, [0, 0, 1.95]);
+        part(g, cyl(0.014, 0.02, 0.36, 6), toon(baCol), [0.96, -0.1, s * 0.05], null, [0, 0, 1.95]);
+      }
+    } else if (name === 'barbel4') {
+      // 鲶鱼 / 黄颡鱼：两对长须
+      var baCol2 = sp.barbelColor === undefined ? 0xd8c9a8 : sp.barbelColor;
+      for (s = -1; s <= 1; s += 2) {
+        part(g, cyl(0.012, 0.018, 0.5, 6), toon(baCol2), [0.94, -0.12, s * 0.07], null, [0, 0, 1.98]);
+        part(g, cyl(0.01, 0.014, 0.34, 6), toon(baCol2), [0.84, -0.2, s * 0.13], null, [0, 0.35 * s, 2.5]);
       }
     } else if (name === 'scale') {
+      var scCol = sp.scaleColor === undefined ? 0xffd07a : sp.scaleColor;
       [[0.42, 0.16], [-0.06, 0.2], [-0.5, 0.14], [0.18, 0.26]].forEach(function (p) {
         for (var k = -1; k <= 1; k += 2) {
-          part(g, sph(0.1, 10), toon(0xffd07a), [p[0], p[1], k * sp.halfDepth * 0.72], [1, 1, 0.34]);
+          part(g, sph(0.1, 10), toon(scCol), [p[0], p[1], k * sp.halfDepth * 0.72], [1, 1, 0.34]);
         }
       });
     } else if (name === 'spots') {
@@ -1459,6 +1646,29 @@
           part(g, sph(0.075, 8), ink(0x3f6b58), [p[0], p[1], k * sp.halfDepth * 0.76], [1, 1, 0.3]);
         }
       });
+    } else if (name === 'blotch') {
+      // 大块深色斑（鲤鱼 / 鳜鱼）
+      var blCol = sp.blotchColor === undefined ? 0x5a3a1e : sp.blotchColor;
+      [[0.5, 0.2, 0.16], [0.14, 0.32, 0.19], [-0.28, 0.18, 0.17], [-0.62, 0.02, 0.13], [0.32, -0.18, 0.12]].forEach(function (p) {
+        for (var k = -1; k <= 1; k += 2) {
+          part(g, sph(p[2], 10), toon(blCol), [p[0], p[1], k * sp.halfDepth * 0.72], [1.25, 0.82, 0.3]);
+        }
+      });
+    } else if (name === 'dots') {
+      // 细小麻点（鲢鱼）
+      [[0.5, 0.24], [0.24, 0.38], [-0.06, 0.28], [-0.42, 0.34], [-0.68, 0.16], [0.38, -0.16], [-0.2, -0.2]].forEach(function (p) {
+        for (var k = -1; k <= 1; k += 2) {
+          part(g, sph(0.055, 8), ink(0x6b7480), [p[0], p[1], k * sp.halfDepth * 0.78], [1, 1, 0.28]);
+        }
+      });
+    } else if (name === 'band') {
+      // 竖向横带（黑鱼 / 黄颡鱼）
+      var bdCol = sp.bandColor === undefined ? 0x2f3a44 : sp.bandColor;
+      for (var bi = -2; bi <= 2; bi++) {
+        for (var bk = -1; bk <= 1; bk += 2) {
+          part(g, sph(0.13, 10), toon(bdCol), [bi * 0.42, 0.02, bk * sp.halfDepth * 0.74], [0.3, 1.35, 0.2]);
+        }
+      }
     } else if (name === 'bigmouth') {
       plate(g, [[1.04, 0.02], [0.7, 0.18], [0.7, -0.16]], sp.halfDepth * 2.06, 0x5b4a3c, [0, 0, -sp.halfDepth * 1.03]);
     } else if (name === 'spike') {
@@ -1484,7 +1694,7 @@
     var g = new THREE.Group();
     var body = part(g, extrudeGeo(blobShape(sp.body), sp.halfDepth * 2, 0.02), toon(sp.color), [0, 0, -sp.halfDepth]);
     outline(body, 1.05, 0x4a4038);
-    part(g, sph(0.42, 16), toon(sp.belly), [0.08, -0.24, 0], [1.45, 0.46, sp.halfDepth * 2.6]);
+    part(g, sph(0.42, 16), toon(sp.belly), [0.08, -0.28, 0], [1.4, 0.4, sp.halfDepth * 2.0]);
     if (sp.dorsal) plate(g, sp.dorsal, sp.halfDepth * 0.9, sp.finColor, [0, 0, 0]);
     for (var s = -1; s <= 1; s += 2) {
       part(g, sph(0.17, 10), toon(sp.finColor), [0.34, -0.2, s * (sp.halfDepth + 0.015)], [1.15, 0.5, 0.24], [0, 0, -0.55]);
@@ -1605,13 +1815,143 @@
     return g;
   }
 
-  var FISH_KEYS = ['crucian', 'carp', 'trout', 'bass', 'bream', 'salmon', 'puffer', 'squid', 'eel', 'octopus'];
+  /* 8 种淡水鱼在前（鱼塘 / 图鉴用），其后为原有海水鱼类 */
+  var FISH_KEYS = ['crucian', 'carp', 'grasscarp', 'silvercarp', 'snakehead', 'catfish', 'yellowcat', 'mandarin',
+                   'trout', 'bass', 'bream', 'salmon', 'puffer', 'squid', 'eel', 'octopus'];
   var FISH_BUILD = { puffer: buildPuffer, squid: buildSquid, eel: buildEel, octopus: buildOctopus };
   FISH_KEYS.forEach(function (k) {
     TOOL_BUILD['fish_' + k] = (function (kk) {
       return function () { return (FISH_BUILD[kk] || buildFish)(kk); };
     })(k);
   });
+
+  /* ---------- 飞禽伙伴：老鹰 / 鸬鹚（正式 3D 模型） ---------- */
+
+  /** 猛禽爪：黄色三趾 + 后趾，以髋为原点便于走路动画 */
+  function petClaw(parent, x, y, len, color) {
+    var hip = new THREE.Group();
+    hip.position.set(x, y, 0);
+    parent.add(hip);
+    part(hip, cyl(0.045, 0.05, len, 8), toon(color), [0, -len / 2, 0]);
+    for (var i = -1; i <= 1; i++) {
+      part(hip, cyl(0.022, 0.026, 0.2, 6), toon(color), [i * 0.055, -len - 0.05, 0.08], null, [1.0, 0, i * 0.24]);
+    }
+    part(hip, cyl(0.02, 0.024, 0.16, 6), toon(color), [0, -len - 0.04, -0.08], null, [-1.0, 0, 0]);
+    return hip;
+  }
+
+  /** 水禽蹼足：橙黄短腿 + 扁蹼 */
+  function petWebFoot(parent, x, y, len, color) {
+    var hip = new THREE.Group();
+    hip.position.set(x, y, 0);
+    parent.add(hip);
+    part(hip, cyl(0.05, 0.055, len, 8), toon(color), [0, -len / 2, 0]);
+    part(hip, box(0.24, 0.05, 0.3), toon(color), [0, -len - 0.015, 0.11]);
+    return hip;
+  }
+
+  /** 老鹰：米白头颈 + 深棕背翅 + 浅杏黄胸腹 + 黄色弯钩喙与利爪 */
+  function petEagleRig() {
+    var g = new THREE.Group(), s;
+    var rig = newRig(g, 'eagle');
+    var FEATHER = 0x8b5a2b, FEATHER_D = 0x6b4520, HEAD = 0xf6f1e6, BELLY = 0xf6d7a0, BEAK = 0xf5c731;
+    rig.parts.legs = [petClaw(g, -0.16, 0.26, 0.08, BEAK), petClaw(g, 0.16, 0.26, 0.08, BEAK)];
+    // 躯干：紧凑团状（背深棕）
+    var body = part(g, sph(0.5, 22), toon(FEATHER), [0, 0.72, -0.02], [0.94, 0.98, 1.08]);
+    outlineOf(body, 1.04, 0.6);
+    rig.parts.body = body;
+    // 浅杏黄胸腹
+    var belly = part(g, sph(0.36, 16), toon(BELLY), [0, 0.66, 0.26], [0.88, 0.92, 0.7]);
+    outlineOf(belly, 1.05, 0.86);
+    // 收拢双翅：沿体侧向后抱身，翅尖深棕（辨识点）
+    rig.parts.wings = [];
+    for (s = -1; s <= 1; s += 2) {
+      var wing = part(g, sph(0.3, 16), toon(FEATHER), [s * 0.35, 0.74, -0.08], [0.5, 0.88, 1.14], [0, s * 0.16, 0]);
+      outlineOf(wing, 1.05, 0.6);
+      var tip = part(g, con(0.13, 0.5, 8), toon(FEATHER_D), [s * 0.4, 0.58, -0.46], [1, 0.9, 0.5], [1.95, 0, 0]);
+      outlineOf(tip, 1.06, 0.6);
+      rig.parts.wings.push(wing);
+    }
+    // 尾羽：深棕扇形
+    var tail = part(g, con(0.3, 0.62, 10), toon(FEATHER_D), [0, 0.6, -0.54], [1.15, 1, 0.34], [1.62, 0, 0]);
+    outlineOf(tail, 1.05, 0.6);
+    rig.parts.tail = tail;
+    // 头：米白圆头 + 深色后颈羽 + 黄色弯钩喙
+    var head = new THREE.Group();
+    head.position.set(0, 1.16, 0.12);
+    g.add(head);
+    var skull = part(head, sph(0.42, 22), toon(HEAD), [0, 0.02, 0], [1.0, 1.0, 1.05]);
+    outlineOf(skull, 1.05, 0.62);
+    part(head, sph(0.17, 12), toon(FEATHER), [0, 0.34, -0.24], [1.2, 0.7, 1.0]);
+    var beak = part(head, con(0.14, 0.36, 10), toon(BEAK), [0, -0.05, 0.4], [1, 1, 0.9], [1.45, 0, 0]);
+    outlineOf(beak, 1.08, 0.6);
+    part(head, sph(0.075, 10), toon(0xd8a516), [0, -0.16, 0.53], [1, 0.9, 1]);
+    rig.parts.eyes = makeEyes(head, 0.115, 0.185, 0.06, 0.35, { rotY: 0.2 });
+    for (s = -1; s <= 1; s += 2) {
+      part(head, box(0.16, 0.045, 0.06), toon(FEATHER_D), [s * 0.19, 0.2, 0.35], null, [0, 0, s * -0.3]);
+    }
+    rig.parts.head = head;
+    return rig;
+  }
+
+  /** 鸬鹚：深灰蓝身 + 白色喉胸 + 黄色长直喙带钩 + 橙黄蹼足 */
+  function petCormorantRig() {
+    var g = new THREE.Group(), s;
+    var rig = newRig(g, 'cormorant');
+    var COAT = 0x5f6f83, COAT_D = 0x4a5765, THROAT = 0xf2f4ef, BEAK = 0xe8b93c;
+    rig.parts.legs = [petWebFoot(g, -0.15, 0.24, 0.08, BEAK), petWebFoot(g, 0.15, 0.24, 0.08, BEAK)];
+    var body = part(g, sph(0.46, 22), toon(COAT), [0, 0.78, -0.02], [0.9, 1.06, 1.04]);
+    outlineOf(body, 1.04, 0.6);
+    rig.parts.body = body;
+    var chest = part(g, sph(0.3, 16), toon(THROAT), [0, 0.72, 0.3], [0.72, 0.88, 0.6]);
+    outlineOf(chest, 1.05, 0.9);
+    // 贴体双翅（潜水用），翅面更深
+    rig.parts.wings = [];
+    for (s = -1; s <= 1; s += 2) {
+      var wing = part(g, sph(0.28, 16), toon(COAT_D), [s * 0.31, 0.78, -0.06], [0.42, 0.94, 1.06], [0, s * 0.14, 0]);
+      outlineOf(wing, 1.05, 0.6);
+      rig.parts.wings.push(wing);
+    }
+    // 短尾
+    var tail = part(g, con(0.24, 0.54, 10), toon(COAT_D), [0, 0.68, -0.48], [1.1, 1, 0.32], [1.6, 0, 0]);
+    outlineOf(tail, 1.05, 0.6);
+    rig.parts.tail = tail;
+    // 长颈 + 头
+    var neck = part(g, cyl(0.17, 0.23, 0.44, 12), toon(COAT), [0, 1.16, 0.1], null, [0.2, 0, 0]);
+    outlineOf(neck, 1.05, 0.6);
+    var head = new THREE.Group();
+    head.position.set(0, 1.42, 0.17);
+    g.add(head);
+    var skull = part(head, sph(0.3, 20), toon(COAT), [0, 0, 0], [1, 0.96, 1.16]);
+    outlineOf(skull, 1.05, 0.6);
+    part(head, sph(0.13, 12), toon(THROAT), [0, -0.13, 0.16], [1, 0.86, 1.0]);
+    // 长直喙 + 上钩尖
+    var beak = part(head, cyl(0.026, 0.075, 0.62, 10), toon(BEAK), [0, -0.02, 0.5], null, [Math.PI / 2, 0, 0]);
+    outlineOf(beak, 1.1, 0.6);
+    part(head, sph(0.05, 8), toon(0xc9920f), [0, 0.02, 0.8], [1, 0.9, 1.15]);
+    for (s = -1; s <= 1; s += 2) {
+      part(head, sph(0.11, 10), toon(0xd8a83c), [s * 0.15, 0.05, 0.2], [1, 0.86, 0.5]);
+    }
+    rig.parts.eyes = makeEyes(head, 0.1, 0.15, 0.06, 0.24, { rotY: 0.22 });
+    rig.parts.head = head;
+    return rig;
+  }
+
+  var PET_KEYS = ['eagle', 'cormorant'];
+  var PET_BUILD = { eagle: petEagleRig, cormorant: petCormorantRig };
+  PET_KEYS.forEach(function (k) {
+    TOOL_BUILD['pet_' + k] = (function (kk) {
+      return function () { return PET_BUILD[kk]().group; };
+    })(k);
+  });
+
+  /** 飞禽伙伴：返回 rig（含 group 与 parts），供场景摆放与动画 */
+  M.buildPet = function (key, scale) {
+    var rig = (PET_BUILD[key] || PET_BUILD.eagle)();
+    rig.group.scale.setScalar(scale || 1);
+    return rig;
+  };
+  M.PET_KEYS = PET_KEYS;
 
   /* ---------- 商店商品 / 产物 / 海产小物 ---------- */
 
@@ -1908,10 +2248,39 @@
     return g;
   }
 
-  var NAV_KEYS = ['pasture', 'farm', 'shop', 'mine', 'calendar', 'beach', 'fishbook'];
+  /** 背包：圆润包身 + 翻盖 + 提手 + 正面口袋 + 双背带与金扣，一眼是"收纳背包" */
+  function buildNavBag() {
+    var g = new THREE.Group(), s;
+    // 包身（暖棕）
+    var body = part(g, box(0.88, 0.76, 0.5), toon(0xc07a3e), [0, -0.26, 0]);
+    outline(body, 1.05, 0x7d4a1f);
+    // 缝线（两道浅色横线，像布料）
+    part(g, box(0.9, 0.05, 0.52), toon(0xe0a968), [0, -0.06, 0]);
+    part(g, box(0.9, 0.05, 0.52), toon(0xe0a968), [0, -0.56, 0]);
+    // 正面口袋 + 口袋盖
+    var pocket = part(g, box(0.5, 0.3, 0.16), toon(0xd99a55), [0, -0.4, 0.3]);
+    outline(pocket, 1.06, 0x8a5423);
+    // 翻盖（深棕，微微前倾）
+    var flap = part(g, box(0.94, 0.4, 0.58), toon(0xa8652f), [0, 0.24, -0.02], null, [0.18, 0, 0]);
+    outline(flap, 1.05, 0x6f3f18);
+    // 顶部提手
+    var handle = part(g, new THREE.TorusGeometry(0.18, 0.055, 8, 16, Math.PI), toon(0x8a5a33), [0, 0.48, -0.14]);
+    outline(handle, 1.06, 0x5a3517);
+    // 金色卡扣
+    var buckle = part(g, box(0.2, 0.13, 0.1), toon(0xf2c452), [0, -0.02, 0.31]);
+    outline(buckle, 1.08, 0xb8860f);
+    // 双背带（垂到身后，末端金扣）
+    for (s = -1; s <= 1; s += 2) {
+      part(g, box(0.15, 0.84, 0.1), toon(0x7d4a1f), [s * 0.29, -0.28, -0.3], null, [0.12, 0, 0]);
+      part(g, box(0.17, 0.1, 0.12), toon(0xe8b23c), [s * 0.29, -0.64, -0.34]);
+    }
+    return g;
+  }
+
+  var NAV_KEYS = ['pasture', 'farm', 'shop', 'mine', 'calendar', 'beach', 'fishbook', 'bag'];
   var NAV_BUILD = {
     pasture: buildNavPasture, farm: buildNavFarm, shop: buildNavShop, mine: buildNavMine,
-    calendar: buildNavCalendar, beach: buildNavBeach, fishbook: buildNavFishBook
+    calendar: buildNavCalendar, beach: buildNavBeach, fishbook: buildNavFishBook, bag: buildNavBag
   };
   NAV_KEYS.forEach(function (k) { TOOL_BUILD['nav_' + k] = NAV_BUILD[k]; });
 

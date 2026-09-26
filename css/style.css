@@ -366,6 +366,25 @@ button.mini {
 }
 @keyframes readyPulse { 0%,100% { box-shadow: 0 0 0 2px rgba(255,222,150,.45), var(--shadow-s) } 50% { box-shadow: 0 0 0 5px rgba(255,222,150,.25), var(--shadow-s) } }
 .plot.sel { border-color: #fff; box-shadow: 0 0 0 3px var(--accent), var(--shadow); transform: translateY(-2px); }
+/* 施肥土地：更深的土色 + 黑色芝麻状小点，与普通土地明显区分 */
+.plot.fert { background: linear-gradient(180deg, #6b4f35, #4f3824); border-color: rgba(38, 26, 15, .6); }
+.plot.wet.fert { background: linear-gradient(180deg, #5b452f, #422f1f); }
+.plot.fert::before {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    radial-gradient(rgba(16, 12, 8, .95) 1.1px, transparent 1.3px),
+    radial-gradient(rgba(16, 12, 8, .8) .9px, transparent 1.1px),
+    radial-gradient(rgba(16, 12, 8, .9) 1.4px, transparent 1.6px);
+  background-size: 11px 11px, 9px 9px, 13px 13px;
+  background-position: 0 0, 5px 4px, 3px 7px;
+}
+.plot.fert .pi, .plot.fert .pl { position: relative; z-index: 1; }
+.plot .fert-dot {
+  position: absolute; right: 4px; bottom: 2px;
+  font-size: 9px; letter-spacing: 1px; color: #140f0a;
+  text-shadow: 0 0 2px rgba(255, 255, 255, .35);
+}
 
 .seed-row { display: flex; flex-wrap: wrap; gap: 7px; }
 .seed {
@@ -507,6 +526,15 @@ button.mini {
 .cal-day.fest { background: linear-gradient(180deg, #ffe6a8, #f7c85e); border-color: #d9a72f; color: #7a5508; }
 .cal-day.today.fest { background: linear-gradient(180deg, #ffd88a, #f0ab2f); color: #5f3f04; }
 .cal-day.done { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cal-day.contest { background: linear-gradient(180deg, #d3ecff, #9fd0f7); border-color: #63a8dd; color: #1f5480; }
+.cal-day.today.contest { background: linear-gradient(180deg, #a9ddff, #6cb6ea); color: #fff; }
+.cal-day.fest.contest { background: linear-gradient(180deg, #ffe6a8, #cfe0f2); border-color: #9fb6cc; }
+
+/* ------------------------------ 比赛日程 ------------------------------ */
+.fest-card.stack { flex-direction: column; align-items: stretch; gap: 6px; }
+.ct-line { display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px dashed rgba(0, 0, 0, .08); font-size: 12px; }
+.ct-i { font-size: 16px; line-height: 1; }
+.ct-m { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px; }
 
 .fest-card {
   display: flex; align-items: center; gap: 10px;
@@ -580,6 +608,41 @@ button.mini {
 .toast.info { background: linear-gradient(180deg, #63a7d2, #4285b3); }
 @keyframes toastIn { from { opacity: 0; transform: translateY(8px) scale(.96) } to { opacity: 1; transform: none } }
 
+/* ------------------------------ 灾难天气明细弹窗 ------------------------------ */
+#disaster-modal {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(30, 26, 18, .55);
+  z-index: 98;
+  padding: 20px;
+}
+.dp-box {
+  width: 100%; max-width: 380px;
+  background: var(--paper);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 18px 14px;
+  animation: toastIn .22s ease;
+}
+.dp-head { display: flex; align-items: center; gap: 12px; }
+.dp-icon { font-size: 34px; line-height: 1; }
+.dp-title { font-size: 17px; font-weight: 700; color: var(--danger); }
+.dp-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.dp-stat { display: flex; gap: 8px; margin: 14px 0 12px; }
+.dp-stat-item { flex: 1; text-align: center; padding: 8px 4px; border-radius: var(--radius-sm); background: var(--paper-2); border: 1px solid var(--line); }
+.dp-stat-item b { display: block; font-size: 18px; color: var(--text); }
+.dp-stat-item span { font-size: 11px; color: var(--muted); }
+.dp-stat-item.dp-dmg b, .dp-stat-item.dp-rate b { color: var(--danger); }
+.dp-list-title { font-size: 12px; color: var(--text-soft); margin-bottom: 6px; }
+.dp-list { max-height: 168px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper-2); }
+.dp-crop { display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 13px; border-bottom: 1px solid var(--line); }
+.dp-crop:last-child { border-bottom: none; }
+.dp-ci { font-size: 16px; }
+.dp-cn { flex: 1; color: var(--text); }
+.dp-cc { color: var(--danger); font-weight: 700; }
+.dp-empty { padding: 14px 10px; text-align: center; font-size: 13px; color: var(--muted); }
+.dp-ok { width: 100%; margin-top: 14px; }
+
 /* ------------------------------ 错误兜底 ------------------------------ */
 #error-overlay {
   position: fixed; inset: 0;
@@ -646,4 +709,78 @@ button.mini {
 @media (min-width: 1100px) {
   .pasture-overlay { padding: 20px 26px; }
   .quick-row { justify-content: flex-start; }
+}
+
+/* ------------------------------ 移动端小屏适配（手机竖屏 ≤560px） ------------------------------ */
+@media (max-width: 560px) {
+  /* 顶部状态栏：避开刘海 / 圆角安全区 */
+  #hud {
+    padding: calc(8px + env(safe-area-inset-top, 0px)) calc(10px + env(safe-area-inset-right, 0px)) 7px calc(10px + env(safe-area-inset-left, 0px));
+  }
+  body { font-size: 14px; }
+  .hud-row { gap: 6px; }
+  .hud-row + .hud-row { margin-top: 6px; }
+  .hud-row.hutwo { gap: 10px; }
+  .hud-chip { padding: 5px 10px; font-size: 12.5px; }
+  .hud-chip .ci, .hud-chip b { font-size: 13.5px; }
+  .hud-chip i { font-size: 11.5px; }
+  .hud-guage { flex: 1 1 100%; min-width: 0; gap: 6px; }
+  .g-label, .g-val { font-size: 12px; }
+  .bar { height: 13px; }
+  .tag { padding: 4px 10px; font-size: 12.5px; }
+
+  /* 底部导航：9 个入口等分整行，不再横向溢出 / 无需横滑 */
+  #tabs {
+    gap: 2px;
+    padding: 5px calc(6px + env(safe-area-inset-right, 0px)) calc(5px + env(safe-area-inset-bottom, 0px)) calc(6px + env(safe-area-inset-left, 0px));
+    overflow-x: hidden;
+  }
+  .tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 6px 2px 5px;
+    border-radius: 12px;
+    font-size: 11px;
+    min-height: 48px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .tab > i { font-size: 18px; }
+
+  /* 触控区：主要按钮 ≥44px，行内小按钮 ≥36px */
+  .btn { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  .btn.mini { min-height: 38px; padding: 7px 13px; font-size: 13px; }
+  .btn.tiny { min-height: 34px; padding: 6px 12px; font-size: 12.5px; }
+  button.mini { min-height: 36px; padding: 7px 12px; font-size: 12.5px; }
+  .pasture-overlay .btn { padding: 10px 14px; font-size: 14px; }
+  .btn-row { gap: 8px; }
+
+  /* 字号可读性提升 */
+  .card-h { padding: 10px 12px; font-size: 14.5px; }
+  .card-h b { font-size: 15.5px; }
+  .card-b { padding: 11px 12px 13px; gap: 9px; }
+  .kv { font-size: 13px; }
+  .note { font-size: 13px; }
+  .muted { font-size: 12.5px; }
+  .log { font-size: 13px; }
+  .strip { padding: 8px 12px 11px; font-size: 13px; }
+  .strip .kv-inline b { font-size: 13.5px; }
+  .plot .pi { font-size: 17px; }
+  .plot .pl { font-size: 10px; }
+  .plot .pidx { font-size: 10px; }
+  .toast { font-size: 13px; padding: 9px 14px; }
+  .bag-nosell, .bag-cat-hint, .fish-meta, .ex-need, .hits { font-size: 12.5px; }
+  .tag-new { font-size: 11.5px; }
+  .sc-h { font-size: 15.5px; }
+  .dp-title { font-size: 16.5px; }
+  .dp-sub, .dp-list-title { font-size: 12.5px; }
+  .dp-stat-item span { font-size: 12px; }
+
+  /* 内容区两侧留出安全区 + 卡片网格收窄 */
+  #view-host { padding: 10px calc(10px + env(safe-area-inset-left, 0px)) 10px calc(10px + env(safe-area-inset-right, 0px)); }
+  .plot-grid { gap: 6px; }
+  .sea-grid, .fish-grid, .ex-grid, .dev-grid { gap: 10px; }
+  #toast-host { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+  #toast-host { max-width: 92vw; }
+  .pasture-overlay { padding: 10px calc(10px + env(safe-area-inset-left, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) calc(10px + env(safe-area-inset-right, 0px)); }
 }

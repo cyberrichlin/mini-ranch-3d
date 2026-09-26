@@ -1,6 +1,6 @@
 /* 自动生成：node tools/render-assets.js */
 window.MF_ASSETS = {
- "generatedAt": "2026-09-20T09:29:44.945Z",
+ "generatedAt": "2026-09-25T23:10:32.754Z",
  "heads": {
   "chicken": "assets/animals/chicken.png",
   "cow": "assets/animals/cow.png",
@@ -63,6 +63,12 @@ window.MF_ASSETS = {
   "seed_radish": "assets/icons/seed_radish.png",
   "fish_crucian": "assets/icons/fish_crucian.png",
   "fish_carp": "assets/icons/fish_carp.png",
+  "fish_grasscarp": "assets/icons/fish_grasscarp.png",
+  "fish_silvercarp": "assets/icons/fish_silvercarp.png",
+  "fish_snakehead": "assets/icons/fish_snakehead.png",
+  "fish_catfish": "assets/icons/fish_catfish.png",
+  "fish_yellowcat": "assets/icons/fish_yellowcat.png",
+  "fish_mandarin": "assets/icons/fish_mandarin.png",
   "fish_trout": "assets/icons/fish_trout.png",
   "fish_bass": "assets/icons/fish_bass.png",
   "fish_bream": "assets/icons/fish_bream.png",
@@ -71,6 +77,8 @@ window.MF_ASSETS = {
   "fish_squid": "assets/icons/fish_squid.png",
   "fish_eel": "assets/icons/fish_eel.png",
   "fish_octopus": "assets/icons/fish_octopus.png",
+  "pet_eagle": "assets/icons/pet_eagle.png",
+  "pet_cormorant": "assets/icons/pet_cormorant.png",
   "goods_milk": "assets/icons/goods_milk.png",
   "goods_egg": "assets/icons/goods_egg.png",
   "goods_wool": "assets/icons/goods_wool.png",
@@ -90,7 +98,8 @@ window.MF_ASSETS = {
   "nav_mine": "assets/icons/nav_mine.png",
   "nav_calendar": "assets/icons/nav_calendar.png",
   "nav_beach": "assets/icons/nav_beach.png",
-  "nav_fishbook": "assets/icons/nav_fishbook.png"
+  "nav_fishbook": "assets/icons/nav_fishbook.png",
+  "nav_bag": "assets/icons/nav_bag.png"
  },
  "views": {
   "adult": {
