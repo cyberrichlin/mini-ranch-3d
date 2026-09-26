@@ -108,7 +108,11 @@ window.UI = (function () {
     if (!host) return;
     const div = document.createElement('div');
     div.className = 'toast ' + (type || 'info');
-    div.textContent = msg;
+    // 提示文案可能内嵌 3D 图标（<img class="ic3d">）等标签：含标签时按 HTML 渲染，
+    // 纯文本仍走 textContent 保持安全，避免提示条把 HTML 源码原样显示出来
+    const text = msg === null || msg === undefined ? '' : String(msg);
+    if (/<(img|b|i|span|br|em|strong)\b[^>]*>/i.test(text)) div.innerHTML = text;
+    else div.textContent = text;
     host.appendChild(div);
     // 每条提示独立计时，3 秒后各自消失（避免旧提示互相顶掉定时器而永久残留）
     const timer = setTimeout(() => {
@@ -162,8 +166,13 @@ window.UI = (function () {
       if (modal.parentNode) modal.parentNode.removeChild(modal);
       Game.state.paused = false;
     };
-    modal.querySelector('.dp-ok').addEventListener('click', close);
+    const okBtn = modal.querySelector('.dp-ok');
+    okBtn.addEventListener('click', close);
+    // 移动端兜底：部分内置浏览器对按钮 click 派发不稳定，补 touchend 确保弹窗一定关得掉
+    // （弹窗不关会残留 paused 标志，表现为游戏时间永久停止、只能靠睡觉跳天）
+    okBtn.addEventListener('touchend', e => { e.preventDefault(); close(); }, { passive: false });
     modal.addEventListener('click', e => { if (e.target === modal) close(); });
+    modal.addEventListener('touchend', e => { if (e.target === modal) { e.preventDefault(); close(); } }, { passive: false });
   }
 
   function result(r, okMsg) {
@@ -419,15 +428,28 @@ window.UI = (function () {
     return { idx: 2, name: '开花', icon: '🌼' };
   }
 
+  /* 土里的图标：优先使用场景按「作物品种 × 生长阶段」绘制的专属造型（幼苗 / 生长 / 开花各不相同，
+     不同作物也不一样）；场景未就绪时回退到 emoji */
+  function stageIcon(cropType, stageIdx, fallback) {
+    try {
+      if (window.Scene && typeof window.Scene.cropStageIcon === 'function') {
+        const url = window.Scene.cropStageIcon(cropType, stageIdx);
+        if (url) return '<img class="ic3d" src="' + url + '" alt="">';
+      }
+    } catch (err) { /* 回退 emoji，保证不因贴图异常影响农田渲染 */ }
+    return fallback;
+  }
+
   function plotFace(p) {
     const fert = !!(p.plowed && p.fertilizerLevel > 0);
     if (!p.plowed) return { icon: '🟫', label: '荒地', fert: false, stage: '' };
     if (!p.cropType) return { icon: '🟩', label: fert ? '已施肥' : '已耕地', fert: fert, stage: '' };
     const crop = D.getCropInfo(p.cropType);
-    if (p.harvestable) return { icon: crop.icon, label: '可收获', fert: fert, stage: '结果' };
+    // 结果期同样使用「品种 × 结果阶段」的造型贴图，保证幼苗 / 生长 / 开花 / 结果四态在土里各不相同
+    if (p.harvestable) return { icon: stageIcon(p.cropType, 3, crop.icon), label: '可收获', fert: fert, stage: '结果' };
     const ratio = p.maxGrowth ? Math.round((p.growthStage / p.maxGrowth) * 100) : 0;
     const st = stageOf(p);
-    return { icon: st.icon, label: st.name + ' ' + ratio + '%', fert: fert, stage: st.name };
+    return { icon: stageIcon(p.cropType, st.idx, st.icon), label: st.name + ' ' + ratio + '%', fert: fert, stage: st.name };
   }
 
   function viewFarm() {

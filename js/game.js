@@ -165,6 +165,10 @@ window.Game = (function () {
         data.disaster = data.disaster || { season: data.season || 0, count: 0, lastDay: 0, last: null, log: [] };
         if (!Array.isArray(data.disaster.log)) data.disaster.log = [];
         data.paused = false;   // 暂停仅用于当代会话（灾难明细弹窗），读档后恢复计时
+        // 探洞状态不跨会话：读档一律结束探洞，避免 mine.inMine 残留把游戏时间永久冻结
+        data.mine.inMine = false;
+        data.mine.current = null;
+        data.mine.floor = 0;
         return data;
       } catch (e) { console.warn('读档失败', e); return null; }
     },
@@ -200,7 +204,11 @@ window.Game = (function () {
     /** 推进游戏时间；返回是否触发自动就寝 */
     update(deltaSeconds) {
       const s = this.state;
-      if (!s || s.mine.inMine || s.paused) return false;
+      if (!s) return false;
+      // 暂停兜底：灾难明细弹窗是唯一的暂停来源。若弹窗已不在页面上（关闭逻辑被中途打断、
+      // 或移动端未派发 click），自动解除暂停，避免游戏时间被永久冻结、只能靠睡觉跳天
+      if (s.paused && typeof document !== 'undefined' && !document.getElementById('disaster-modal')) s.paused = false;
+      if (s.mine.inMine || s.paused) return false;
       s.time += deltaSeconds * D.MINUTES_PER_SECOND;
       if (s.time >= D.DAY_END) { s.time = D.DAY_END; this.sleep(true); return true; }
       return false;
@@ -354,6 +362,7 @@ window.Game = (function () {
       this.runHelpers();
       this.generateForecast();
 
+      s.paused = false;                   // 跨天清除暂停残留，避免弹窗关闭异常后时间被永久冻结
       s.time = D.DAY_START;
       const st = s.stamina;
       st.cur = s.build.beds ? st.max : Math.floor(st.max * 0.9);

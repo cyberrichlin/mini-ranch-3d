@@ -644,6 +644,18 @@ window.Scene = (function () {
     return buildCow(scale, false);
   }
 
+  /** 给动物叠加一层不可见拾取体：手机端手指点击的容错更大，避免点不中（不参与渲染） */
+  function addAnimalHitbox(group, animalId, size) {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]),
+      new THREE.MeshBasicMaterial({ visible: false }));
+    box.position.y = size[1] / 2;
+    box.userData.pickType = 'animal';
+    box.userData.animalId = animalId;
+    group.add(box);
+    pickables.push(box);
+    return box;
+  }
+
   function spawnAnimals(state) {
     animalRigs.forEach(r => groups.animals.remove(r.group));
     animalRigs = [];
@@ -663,6 +675,7 @@ window.Scene = (function () {
       rig.wander = { tx: rig.group.position.x, tz: rig.group.position.z, timer: 1 + Math.random() * 3, speed: 0.5 + Math.random() * 0.4 };
       void ang;
       rig.group.traverse(o => { if (o.isMesh) { o.userData.pickType = 'animal'; o.userData.animalId = a.id; pickables.push(o); } });
+      addAnimalHitbox(rig.group, a.id, [2.1, 2.5, 2.1]);   // 手机端点选容错
       attachCharmHeart(rig, 2.5, 1);
       groups.animals.add(rig.group);
       animalRigs.push(rig);
@@ -677,6 +690,7 @@ window.Scene = (function () {
       dogRig.wander = { tx: dogRig.group.position.x, tz: dogRig.group.position.z, timer: 1.2, pause: false };
       attachCharmHeart(dogRig, 1.95, 0.8);
       dogRig.group.traverse(o => { if (o.isMesh) { o.userData.pickType = 'animal'; o.userData.animalId = 'dog'; pickables.push(o); } });
+      addAnimalHitbox(dogRig.group, 'dog', [1.6, 1.7, 1.6]);   // 手机端点选容错
       groups.animals.add(dogRig.group);
     }
 
@@ -687,6 +701,7 @@ window.Scene = (function () {
       horseRig.walkSpeed = 0.62;
       attachCharmHeart(horseRig, 3.65, 1.25);
       horseRig.group.traverse(o => { if (o.isMesh) { o.userData.pickType = 'animal'; o.userData.animalId = 'horse'; pickables.push(o); } });
+      addAnimalHitbox(horseRig.group, 'horse', [2.8, 3.7, 2.8]);   // 手机端点选容错
       horseRig.wander = { tx: horseRig.group.position.x, tz: horseRig.group.position.z, timer: 1.6, pause: false };
       if (state.horse.riding) {
         riderRig = buildRider();
@@ -1076,9 +1091,21 @@ window.Scene = (function () {
         leafScale, leafScale * 0.3, leafScale * 0.6, 0.18, -a, -0.45 - stageIdx * 0.08);
     }
 
-    if (stageIdx === 2) {
-      putMesh(g, 'ball', st.bloom, 0, stemH + 0.05, 0, 0.44, 0.5, 0.44);
+    if (stageIdx === 1) {
+      // 生长中：茎侧结出未成熟的小果（果实主色 + 明显缩小的尺寸），与幼苗期明显区分
+      const fr = 0.3;
+      if (st.shape === 'root' || st.shape === 'bulb' || st.shape === 'tuber' ||
+          st.shape === 'melon' || st.shape === 'gourd' || st.shape === 'head') {
+        putMesh(g, 'ball', st.fruit, 0.32, 0.13, 0.2, fr * 1.1, fr * 0.8, fr * 1.1);
+      } else {
+        putMesh(g, 'ball', st.fruit, 0.3, stemH * 0.72, 0.06, fr, fr, fr);
+        putMesh(g, 'ball', st.fruit, -0.26, stemH * 0.46, -0.14, fr * 0.8, fr * 0.8, fr * 0.8);
+      }
+    } else if (stageIdx === 2) {
+      putMesh(g, 'ball', st.bloom, 0, stemH + 0.05, 0, 0.46, 0.52, 0.46);
       addBlossom(g, 0, stemH + 0.02, 0, st.bloom, st.accent, 0.1);
+      putMesh(g, 'ball', st.bloom, 0.3, stemH * 0.72, 0.16, 0.2, 0.2, 0.2);      // 侧生花苞
+      putMesh(g, 'ball', st.bloom, -0.28, stemH * 0.54, -0.18, 0.17, 0.17, 0.17);
     } else if (stageIdx === 3) {
       if (st.shape === 'flower') buildFlowerCluster(g, st);
       else buildFruit(g, st);
@@ -1090,7 +1117,7 @@ window.Scene = (function () {
 
   function cssHex(c) { return '#' + ('000000' + (c >>> 0).toString(16)).slice(-6); }
 
-  function paintCropIcon(ctx, cropId, S) {
+  function paintCropIcon(ctx, cropId, S, noPlate) {
     const st = CROP_STYLE[cropId] || CROP_STYLE.turnip;
     const F = cssHex(st.fruit), A = cssHex(st.accent), L = cssHex(st.leaf), B = cssHex(st.bloom);
     ctx.clearRect(0, 0, S, S);
@@ -1098,8 +1125,10 @@ window.Scene = (function () {
     ctx.translate(S / 2, S / 2);
     ctx.lineWidth = S * 0.035;
     ctx.strokeStyle = 'rgba(72,54,40,0.6)';
-    ctx.fillStyle = 'rgba(255,255,255,0.88)';
-    ctx.beginPath(); ctx.arc(0, 0, S * 0.44, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (!noPlate) {   // noPlate=true 时不画白色底盘，便于叠加 / 直接贴在土色地块上
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.beginPath(); ctx.arc(0, 0, S * 0.44, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
     const leaf = (x, y, w, h, rot) => {
       ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
       ctx.fillStyle = L; ctx.beginPath(); ctx.ellipse(0, 0, w, h, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -1191,6 +1220,101 @@ window.Scene = (function () {
         break;
     }
     ctx.restore();
+  }
+
+  /* ---------- 田间各生长阶段造型（幼苗 / 生长 / 开花 / 结果，按作物品种区分） ---------- */
+
+  /**
+   * 绘制「作物 × 生长阶段」的田间造型（透明底，直接贴在土色地块上）：
+   *  - 0 幼苗：矮茎 + 2 片浅色嫩叶
+   *  - 1 生长：高茎 + 多片深色叶 + 未成熟的果实雏形（根茎 / 瓜类会露出土面）
+   *  - 2 开花：高茎 + 叶 + 顶端花朵（花瓣用品种花色，区分不同作物）
+   *  - 3 结果：复用成熟果实造型（去掉白底盘）
+   */
+  function paintCropPlant(ctx, cropId, stageIdx, S) {
+    const st = CROP_STYLE[cropId] || CROP_STYLE.turnip;
+    const L = cssHex(st.leaf), F = cssHex(st.fruit), B = cssHex(st.bloom), A = cssHex(st.accent);
+    const stage = Math.max(0, Math.min(3, stageIdx | 0));
+    ctx.clearRect(0, 0, S, S);
+
+    if (stage >= 3) {   // 结果期：直接复用成熟果实造型，去掉白底盘
+      ctx.save();
+      ctx.translate(S * 0.5, S * 0.52); ctx.scale(0.86, 0.86); ctx.translate(-S * 0.5, -S * 0.5);
+      paintCropIcon(ctx, cropId, S, true);
+      ctx.restore();
+      return;
+    }
+
+    ctx.save();
+    ctx.translate(S / 2, S * 0.86);          // 以土面为茎基
+    ctx.lineWidth = S * 0.03;
+    ctx.strokeStyle = 'rgba(72,54,40,0.5)';
+
+    const stemH = [0.26, 0.5, 0.6][stage] * S;
+    const stemW = (stage === 0 ? 0.05 : 0.07) * S;
+    ctx.fillStyle = stage === 0 ? '#a9dd7c' : '#5f9f42';
+    ctx.fillRect(-stemW / 2, -stemH, stemW, stemH);
+
+    const leafCount = [2, 4, 5][stage];
+    const leafScale = [0.15, 0.21, 0.23][stage];
+    for (let k = 0; k < leafCount; k++) {
+      const dir = (k % 2 === 0) ? -1 : 1;
+      const lvl = Math.min(1, 0.42 + Math.floor(k / 2) * 0.28);
+      ctx.save();
+      ctx.translate(0, -stemH * lvl);
+      ctx.rotate(dir * (0.5 + stage * 0.08));
+      ctx.fillStyle = stage === 0 ? '#c4ec92' : L;
+      ctx.beginPath();
+      ctx.ellipse(dir * leafScale * S * 0.62, 0, leafScale * S * 0.66, leafScale * S * 0.32, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+
+    const tuberLike = (st.shape === 'root' || st.shape === 'bulb' || st.shape === 'tuber' ||
+      st.shape === 'gourd' || st.shape === 'head' || st.shape === 'melon');
+    if (stage === 1 && tuberLike) {          // 根茎 / 瓜类：土面已露出未成熟的小果
+      ctx.globalAlpha = 0.72;
+      ctx.fillStyle = F;
+      ctx.beginPath(); ctx.ellipse(0, -S * 0.02, S * 0.14, S * 0.08, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else if (stage === 1) {                // 地上结果类：茎侧结出未熟小果
+      ctx.globalAlpha = 0.72;
+      ctx.fillStyle = F;
+      ctx.beginPath(); ctx.arc(S * 0.1, -stemH * 0.44, S * 0.075, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    if (stage === 2) {                       // 开花期：顶端开出品种专属花色的花朵
+      const cy = -stemH - S * 0.02;
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2;
+        ctx.fillStyle = B;
+        ctx.beginPath();
+        ctx.ellipse(Math.cos(a) * S * 0.095, cy + Math.sin(a) * S * 0.095, S * 0.082, S * 0.058, a, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+      }
+      ctx.fillStyle = A;
+      ctx.beginPath(); ctx.arc(0, cy, S * 0.058, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  const cropPlantCanvasCache = {};
+  /** 取「作物 × 生长阶段」田间造型图标的 dataURL（供 UI 面板复用同一套 2D 造型） */
+  function cropStageIconURL(cropId, stageIdx) {
+    const key = cropId + '|' + stageIdx;
+    if (cropPlantCanvasCache[key]) return cropPlantCanvasCache[key];
+    let url = '';
+    try {
+      const S = 96;
+      const cv = document.createElement('canvas');
+      cv.width = S; cv.height = S;
+      const ctx = cv.getContext('2d');
+      if (ctx) { paintCropPlant(ctx, cropId, stageIdx, S); url = cv.toDataURL('image/png'); }
+    } catch (e) { url = ''; }
+    cropPlantCanvasCache[key] = url;
+    return url;
   }
 
   const cropIconCanvasCache = {};
@@ -1499,21 +1623,57 @@ window.Scene = (function () {
   /* ======================= 交互拾取 ======================= */
 
   function bindPointer(canvasEl) {
-    canvasEl.addEventListener('click', e => {
-      if (mode !== '3d' || !renderer) { handleFallbackClick(e); return; }
+    let lastPickAt = 0;
+
+    const hitTest = (clientX, clientY) => {
       const rect = canvasEl.getBoundingClientRect();
-      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObjects(pickables, false);
       for (let i = 0; i < hits.length; i++) {
         const ud = hits[i].object.userData;
-        if (ud.pickType === 'plot' && callbacks.plot) { callbacks.plot(ud.index); return; }
-        if (ud.pickType === 'animal' && callbacks.animal) { callbacks.animal(ud.animalId); return; }
-        if (ud.pickType === 'mine' && callbacks.mine) { callbacks.mine(); return; }
-        if (ud.pickType === 'pasture') { return; }
+        if (ud.pickType === 'plot' && callbacks.plot) { callbacks.plot(ud.index); return true; }
+        if (ud.pickType === 'animal' && callbacks.animal) { callbacks.animal(ud.animalId); return true; }
+        if (ud.pickType === 'mine' && callbacks.mine) { callbacks.mine(); return true; }
+        if (ud.pickType === 'pasture') { return true; }
       }
-    });
+      return true;
+    };
+
+    const pick = (clientX, clientY) => {
+      if (mode !== '3d' || !renderer) { handleFallbackClick({ clientX: clientX, clientY: clientY }); return; }
+      const now = Date.now();
+      // 同一次触摸在移动端会先后触发 pointerup 与 click，用时间窗去重，避免一次点击响应两回
+      if (now - lastPickAt < 350) return;
+      lastPickAt = now;
+      hitTest(clientX, clientY);
+    };
+
+    canvasEl.addEventListener('click', e => pick(e.clientX, e.clientY));
+
+    // 触屏兜底：部分移动端浏览器不会给 canvas 派发 click，改用 pointerup / touchend 完成拾取
+    const pickTouch = e => {
+      const t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+      if (!t) return;
+      pick(t.clientX, t.clientY);
+    };
+    let downX = 0, downY = 0, tracking = false;
+    if (window.PointerEvent) {
+      canvasEl.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; tracking = true; });
+      canvasEl.addEventListener('pointerup', e => {
+        if (!tracking) return;
+        tracking = false;
+        if (Math.abs(e.clientX - downX) > 16 || Math.abs(e.clientY - downY) > 16) return;   // 拖动 / 滑动不算点击
+        pick(e.clientX, e.clientY);
+      });
+    } else {
+      canvasEl.addEventListener('touchstart', e => {
+        const t = e.changedTouches[0];
+        if (t) { downX = t.clientX; downY = t.clientY; tracking = true; }
+      }, { passive: true });
+      canvasEl.addEventListener('touchend', pickTouch);
+    }
   }
 
   function handleFallbackClick(e) {
@@ -1866,6 +2026,25 @@ window.Scene = (function () {
         canvas: renderer ? [renderer.domElement.width, renderer.domElement.height] : null
       };
     },
+    // 只读自检接口：返回牧场动物的屏幕归一化坐标（0~1），便于自动化测试直接点中动物本体
+    probeAnimals: function () {
+      var out = [];
+      if (!camera || !renderer || mode !== '3d') return out;
+      var v = new THREE.Vector3();
+      var all = animalRigs.concat(dogRig ? [dogRig] : []).concat(horseRig ? [horseRig] : []);
+      all.forEach(function (r) {
+        v.set(r.group.position.x, 1.0, r.group.position.z).project(camera);
+        out.push({
+          id: r.id || r.type,
+          x: +((v.x + 1) / 2).toFixed(3),
+          y: +((1 - v.y) / 2).toFixed(3),
+          inView: v.x > -1 && v.x < 1 && v.y > -1 && v.y < 1 && v.z < 1
+        });
+      });
+      return out;
+    },
+    // 田间各生长阶段造型图标（供 UI 农田面板复用同一套 2D 造型，保证与 3D 场景一致）
+    cropStageIcon: function (cropId, stageIdx) { return cropStageIconURL(cropId, stageIdx); },
     onClickPlot: function (cb) { callbacks.plot = cb; },
     onClickAnimal: function (cb) { callbacks.animal = cb; },
     onClickMine: function (cb) { callbacks.mine = cb; }
