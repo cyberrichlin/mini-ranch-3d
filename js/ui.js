@@ -188,7 +188,7 @@ window.UI = (function () {
     root.innerHTML = [
       '<div id="hud"></div>',
       '<div id="stage">',
-      '  <div id="scene-wrap"><canvas id="scene"></canvas><div class="vignette"></div><div class="scene-badge" id="scene-badge"></div></div>',
+      '  <div id="scene-wrap"><canvas id="scene"></canvas><div class="vignette"></div><canvas id="weather-fx"></canvas><div class="scene-badge" id="scene-badge"></div></div>',
       '  <div id="view-host"></div>',
       '</div>',
       '<nav id="tabs">' + VIEWS.map(v => '<button class="tab" data-act="nav:' + v.key + '" data-view="' + v.key + '">' + navIconSrc(v.key, v.icon) + v.name + '</button>').join('') + '</nav>',
@@ -234,6 +234,7 @@ window.UI = (function () {
       }
     });
     window.Scene.onClickMine(() => { view = 'mine'; render(); toast('来到矿洞入口', 'info'); });
+    if (window.Scene.onClickCrate) window.Scene.onClickCrate(() => { toast('出货箱：仓库卖货页稍后开放，点这里先记下来', 'info'); });
     const badge = el('scene-badge');
     if (badge) badge.textContent = mode === '3d' ? '萌版 3D · 固定俯视角' : '等距伪 3D 降级模式';
     window.Scene.refresh(Game.state);
@@ -464,6 +465,8 @@ window.UI = (function () {
       const cls = ['plot'];
       if (plot.harvestable) cls.push('ready');
       if (plot.plowed && !plot.cropType) cls.push('plowed');
+      if (!plot.plowed) cls.push('waste');   // 荒地：乱杂草 + 石子
+      if (plot.plowed && !plot.cropType && plot.waterLevel === 0) cls.push('dry');   // 干裂：已耕、无作物、水分 0（只改外观，不改玩法）
       if (selectedPlot === i) cls.push('sel');
       if (plot.waterLevel > 0 && plot.cropType) cls.push('wet');
       if (plot.fertilizerLevel > 0) cls.push('fert');

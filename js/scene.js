@@ -9,17 +9,38 @@ window.Scene = (function () {
   const D = window.GAME_DATA;
 
   const LAYOUT = {
-    field: { cols: 6, rows: 4, plotSize: 2, gap: 0.12, x: -6.3, z: -10.2 },
-    pasture: { minX: -11, maxX: 11, minZ: -4, maxZ: 4 },
-    house: { x: -11.5, z: -7.5 },
-    barn: { x: 11.5, z: -7.5 },
-    coop: { x: 8.5, z: -13 },
-    doghouse: { x: -13, z: -1.5 },
-    pond: { x: -15.5, z: 4.5, r: 3.2 },
-    mine: { x: 15, z: 3.5 },
+    /* 农田移到东边（让出中间竖条给牧场）；农田页本身是 HTML 网格，3D 田只作特写 */
+    field: { cols: 6, rows: 4, plotSize: 2, gap: 0.12, x: 24, z: -20 },
+    /* 牧场竖长一页（v9/v10）：从上到下 = 放牧空地 → 大栏杆 → 建筑排 → 散养区 → 松鼠树 → 池塘 */
+    /* 7 个大栏：牛/羊并排、鸡/兔/羊驼各一整栏、空栏 2 个（栏大、间隔大，栏里有空地走动） */
+    pens: [
+      { key: 'cow',     minX: -16, minZ: -29, w: 15, d: 8 },
+      { key: 'sheep',   minX: 1,   minZ: -29, w: 15, d: 8 },
+      { key: 'chicken', minX: -16, minZ: -19, w: 32, d: 7 },
+      { key: 'anjela',  minX: -16, minZ: -10, w: 32, d: 6.5 },
+      { key: 'llama',   minX: -16, minZ: -1.5, w: 32, d: 7 },
+      { key: 'empty1',  minX: -16, minZ: 7.5, w: 15, d: 6.5 },
+      { key: 'empty2',  minX: 1,   minZ: 7.5, w: 15, d: 6.5 }
+    ],
+    penOf: { cow: 'cow', sheep: 'sheep', chicken: 'chicken', anjela: 'anjela', llama: 'llama' },
+    /* 放牧空地（最上方一大块椭圆草地，够 10 只动物一起出来） */
+    meadow: { minX: -15, maxX: 15, minZ: -38, maxZ: -31.5 },
+    /* 建筑排（v12 位置）：马厩在上（西侧近放牧空地）、谷仓/仓库在中段西侧、农舍/粮草屋/狗窝/猫窝在下段；
+       鸡舍在西侧近鸡栏，出货箱挨着仓库 */
+    house: { x: 13, z: 19 },
+    barn: { x: -20, z: -6 },
+    coop: { x: -18.5, z: -15.5 },
+    stable: { x: -20, z: -24 },
+    warehouse: { x: -20, z: 2 },
+    hayhouse: { x: 6, z: 19 },
+    doghouse: { x: -16, z: 20 },
+    cathouse: { x: -11, z: 21 },
+    pond: { x: 0, z: 34, r: 4.5 },
+    mine: { x: 25, z: 0 },
+    crate: { x: -17.5, z: 4.8 },
     camOffset: { x: 0, y: 27, z: 26 },
-    /* 农田特写机位（查看作物各生长阶段 / 施肥痕迹时使用） */
-    camField: { x: -1, y: 14, z: 2.6, lookX: -1, lookY: 0, lookZ: -7.0 }
+    /* 农田特写机位（农田 v9：镜头只是微微斜着往下看，不是完全垂直俯视；约 69° 仰角，植物能看到茎的高度） */
+    camField: { x: 30, y: 17, z: -9.5, lookX: 30, lookY: 0, lookZ: -16 }
   };
 
   /* 每种作物的专属视觉：leaf 叶片色 / fruit 果实色 / accent 点缀色 / bloom 花色 / shape 造型
@@ -50,8 +71,8 @@ window.Scene = (function () {
     camellia:      { shape: 'flower', leaf: 0x4f9e3a, fruit: 0xe8657f, accent: 0xfff0c0, bloom: 0xe8657f }
   };
 
-  /* 土壤三态：普通 / 浇水湿润 / 施肥（深色沃土，另叠加黑色芝麻点） */
-  const SOIL_COLOR = { normal: 0x8a6242, wet: 0x6b4a30, fert: 0x4e3728 };
+  /* 土壤四态（农田 v9 确认稿）：翻耕浅驼色 / 浇水浅奶茶棕（绝不深巧克力）/ 施肥浅暖棕 + 黑点 / 干裂苍白 */
+  const SOIL_COLOR = { normal: 0xc79a68, wet: 0xa87a4e, fert: 0x9a6b3f, dry: 0xd9b48f };
 
   /* 生长阶段：0 幼苗 / 1 生长 / 2 开花 / 3 结果成熟 */
   const STAGE_NAMES = ['幼苗', '生长', '开花', '结果'];
@@ -70,10 +91,12 @@ window.Scene = (function () {
   let running = false, rafId = 0;
   let pointer = { x: 0, y: 0 };
   let raycaster = null;
-  let callbacks = { plot: null, animal: null, mine: null };
+  let callbacks = { plot: null, animal: null, mine: null, crate: null };
   let anim = { t: 0, rideAngle: 0, riders: 0, flash: 0 };
   let last = { season: -1, weather: -1, riding: false, animalSig: '' };
   let camMode = 'wide';   // wide 全景 / field 农田特写
+  let camPan = { x: 0, z: -16 };   // 拖动镜头平移量（牧场是竖长一页，往下拉看；默认停在牛羊栏 + 鸡栏，栏里动物可见，放牧空地在画面上方边缘，往上拖能看到）
+  let squirrelRig = null;   // 松鼠（平时在树上，下来啃果实）
   let fallbackCtx = null, fallbackCanvas = null, fallbackState = null;
   const toonMats = {};
   /* 施肥标记用的黑色小点（芝麻状）共享几何与材质 */
@@ -136,39 +159,52 @@ window.Scene = (function () {
     groups.terrain.add(sky);
     groups.sky = sky;
 
-    const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 });
+    const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.92, fog: false });
+    // 太阳圆盘（晴 / 干旱时可见，applyTheme 控制显隐与大小）
+    const sun = mesh(new THREE.CircleGeometry(3.2, 24), new THREE.MeshBasicMaterial({ color: 0xffe98a, fog: false }), -34, 26, -52, groups.terrain, false, false);
+    groups.sun = sun;
     groups.clouds = new THREE.Group();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 10; i++) {
       const c = new THREE.Group();
       const n = 3 + Math.floor(Math.random() * 3);
       for (let j = 0; j < n; j++) {
         const s = mesh(sphere(1.1 + Math.random() * 0.9, 12, 10), cloudMat, (j - n / 2) * 1.4, Math.random() * 0.4, Math.random() * 0.6, c, false, false);
         s.scale.y = 0.62;
       }
-      c.position.set(-40 + Math.random() * 80, 20 + Math.random() * 8, -40 + Math.random() * 55);
+      c.position.set(-60 + Math.random() * 120, 20 + Math.random() * 8, -70 + Math.random() * 85);
       groups.clouds.add(c);
     }
     groups.terrain.add(groups.clouds);
   }
 
   function buildGround() {
-    const g = mesh(new THREE.CircleGeometry(46, 48), soft(0x92d46c), 0, -0.02, 0, groups.terrain, false, true);
+    /* 草地一直延伸到远方（v12 远景）：大圆盘 + 远处雾色融合进天空 */
+    const g = mesh(new THREE.CircleGeometry(120, 48), soft(0x92d46c), 0, -0.02, 0, groups.terrain, false, true);
     g.rotation.x = -Math.PI / 2;
     groups.ground = g;
 
-    // 远山
-    const hillMat = soft(0x8ed46a);
+    /* 远山（v12）：连绵绿色山丘在最北边，雾不遮挡（fog:false），视线开阔不被树和建筑挡住 */
+    const hillCols = [0x9ccf88, 0x8fbf7f, 0xa8d695, 0x93c47f, 0x9ccf88];
     for (let i = 0; i < 5; i++) {
-      const h = mesh(sphere(6 + Math.random() * 5, 14, 10), hillMat, -34 + i * 17, -3.5, -30 - Math.random() * 8, groups.terrain, false, false);
-      h.scale.y = 0.55;
+      const h = mesh(sphere(12 + Math.random() * 8, 14, 10),
+        new THREE.MeshLambertMaterial({ color: hillCols[i], fog: false }),
+        -44 + i * 22, -4.5, -68 - Math.random() * 10, groups.terrain, false, false);
+      h.scale.y = 0.38 + Math.random() * 0.12;
     }
+    [[-62, -30, 14], [62, -24, 15]].forEach(s => {
+      const h = mesh(sphere(s[2], 14, 10), new THREE.MeshLambertMaterial({ color: 0x9ccf88, fog: false }),
+        s[0], -4, s[1], groups.terrain, false, false);
+      h.scale.y = 0.4;
+    });
 
-    // 草簇
+    // 草簇（避开农田与池塘）
     const grassMat = new THREE.MeshLambertMaterial({ color: 0x7ec85a });
     const grassGeo = new THREE.ConeGeometry(0.16, 0.7, 5);
-    for (let i = 0; i < 90; i++) {
-      const x = -22 + Math.random() * 44, z = -20 + Math.random() * 40;
-      if (x > -8 && x < 8 && z > -12 && z < -1) continue;
+    for (let i = 0; i < 120; i++) {
+      const x = -24 + Math.random() * 48, z = -40 + Math.random() * 76;
+      if (x > 23 && x < 38 && z > -21 && z < -11) continue;   // 农田
+      const pdx = x - LAYOUT.pond.x, pdz = z - LAYOUT.pond.z;
+      if (pdx * pdx + pdz * pdz < 30) continue;   // 池塘
       const tuft = mesh(grassGeo, grassMat, x, 0.32, z, groups.terrain, false, false);
       tuft.rotation.z = (Math.random() - 0.5) * 0.4;
       tuft.scale.setScalar(0.7 + Math.random() * 0.7);
@@ -182,6 +218,16 @@ window.Scene = (function () {
     groups.water = water;
     const rim = mesh(new THREE.TorusGeometry(p.r, 0.28, 8, 32), soft(0xb99268), p.x, 0.08, p.z, groups.terrain, false, true);
     rim.rotation.x = -Math.PI / 2;
+    // 芦苇 + 睡莲叶
+    const reedMat = toon(0x5f9f42);
+    [[-1.6, -1.2], [-1.2, 1.4], [1.5, -1.0]].forEach(rp => {
+      mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.6, 5), reedMat, p.x + rp[0], 0.8, p.z + rp[1], groups.terrain, false, false);
+      mesh(sphere(0.12, 8, 8), toon(0x8a6a3a), p.x + rp[0], 1.65, p.z + rp[1], groups.terrain, false, false);
+    });
+    [[0.8, 0.6], [-0.4, 1.2]].forEach(lp => {
+      const pad = mesh(new THREE.CircleGeometry(0.45, 12), new THREE.MeshLambertMaterial({ color: 0x4f9e3a }), p.x + lp[0], 0.07, p.z + lp[1], groups.terrain, false, false);
+      pad.rotation.x = -Math.PI / 2;
+    });
   }
 
   function buildBuildings() {
@@ -218,15 +264,116 @@ window.Scene = (function () {
     const dogRoof = mesh(new THREE.ConeGeometry(1.4, 0.9, 4), toon(0xc4703f), dg.x, 1.75, dg.z, groups.buildings);
     dogRoof.rotation.y = Math.PI / 4;
     mesh(new THREE.CircleGeometry(0.35, 14), toon(0x4a3b34), dg.x, 0.6, dg.z + 0.78, groups.buildings, false, false);
+    // 狗窝骨头牌
+    const boneMat = toon(0xfff6e8);
+    mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.7, 8), boneMat, dg.x, 2.45, dg.z + 0.8, groups.buildings, false, false).rotation.z = Math.PI / 2;
+    mesh(sphere(0.13, 8, 8), boneMat, dg.x - 0.35, 2.45, dg.z + 0.8, groups.buildings, false, false);
+    mesh(sphere(0.13, 8, 8), boneMat, dg.x + 0.35, 2.45, dg.z + 0.8, groups.buildings, false, false);
 
-    // 矿洞入口
+    // 马厩（敞开式 + 干草架）
+    const st = LAYOUT.stable;
+    const stBase = mesh(new THREE.BoxGeometry(4.6, 2.6, 3.6), toon(0xd9b380), st.x, 1.3, st.z, groups.buildings);
+    outline(stBase, 1.03, 0x6a5546);
+    const stRoof = mesh(new THREE.BoxGeometry(5.2, 0.4, 4.2), toon(0xa8623c), st.x, 2.8, st.z, groups.buildings);
+    void stRoof;
+    mesh(new THREE.BoxGeometry(1.6, 1.8, 0.2), toon(0x5e4630), st.x, 0.9, st.z + 1.85, groups.buildings, false, false);
+    mesh(new THREE.BoxGeometry(1.2, 0.5, 0.9), toon(0xe8c25a), st.x + 1.2, 0.35, st.z + 1.2, groups.buildings, false, false);
+
+    // 灰色仓库
+    const wh = LAYOUT.warehouse;
+    const whBase = mesh(new THREE.BoxGeometry(5, 3.4, 4), toon(0xb9b3ac), wh.x, 1.7, wh.z, groups.buildings);
+    outline(whBase, 1.03, 0x5c564e);
+    mesh(new THREE.BoxGeometry(5.6, 0.4, 4.6), toon(0x8a857e), wh.x, 3.6, wh.z, groups.buildings);
+    mesh(new THREE.BoxGeometry(1.4, 2.2, 0.2), toon(0x6f6a63), wh.x, 1.1, wh.z + 2.05, groups.buildings, false, false);
+
+    // 粮草屋（茅草顶 + 门口干草垛）
+    const hh = LAYOUT.hayhouse;
+    const hhBase = mesh(new THREE.BoxGeometry(3.6, 2.4, 3.2), toon(0xf0d9a8), hh.x, 1.2, hh.z, groups.buildings);
+    outline(hhBase, 1.03, 0x6a5546);
+    const hhRoof = mesh(new THREE.ConeGeometry(2.9, 1.6, 4), toon(0xd9b25a), hh.x, 3.2, hh.z, groups.buildings);
+    hhRoof.rotation.y = Math.PI / 4;
+    mesh(new THREE.CylinderGeometry(0.7, 0.7, 1.0, 12), toon(0xe8c25a), hh.x - 1.6, 0.7, hh.z + 1.6, groups.buildings).rotation.z = Math.PI / 2;
+    mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.9, 12), toon(0xe8c25a), hh.x + 1.8, 0.55, hh.z + 1.4, groups.buildings).rotation.z = Math.PI / 2;
+
+    // 粉色猫窝（鱼牌）
+    const ch = LAYOUT.cathouse;
+    const chBase = mesh(new THREE.BoxGeometry(2.2, 1.6, 2), toon(0xf7b8c8), ch.x, 0.8, ch.z, groups.buildings);
+    outline(chBase, 1.05, 0x8a5a68);
+    const chRoof = mesh(new THREE.ConeGeometry(1.8, 1.0, 4), toon(0xe87a9a), ch.x, 2.1, ch.z, groups.buildings);
+    chRoof.rotation.y = Math.PI / 4;
+    mesh(new THREE.CircleGeometry(0.3, 14), toon(0x4a3b34), ch.x, 0.55, ch.z + 1.02, groups.buildings, false, false);
+    const fishMat = toon(0x6db7e8);
+    const fishBody = mesh(sphere(0.28, 10, 8), fishMat, ch.x, 2.9, ch.z + 1.0, groups.buildings, false, false);
+    fishBody.scale.set(1.4, 0.8, 0.4);
+    mesh(new THREE.ConeGeometry(0.2, 0.4, 4), fishMat, ch.x - 0.5, 2.9, ch.z + 1.0, groups.buildings, false, false).rotation.z = Math.PI / 2;
+
+    // 出货箱（敞口木箱 + 小麦/蔬菜，点它以后进仓库卖货页；本次只做点击提示）
+    const cr = LAYOUT.crate;
+    const crateMat = toon(0xc89a5e);
+    mesh(new THREE.BoxGeometry(2.2, 0.25, 1.6), crateMat, cr.x, 0.13, cr.z, groups.buildings);
+    [[0, 0.82], [0, -0.82]].forEach(o => mesh(new THREE.BoxGeometry(2.2, 0.9, 0.15), crateMat, cr.x, 0.55, cr.z + o[1], groups.buildings));
+    [[1.1, 0], [-1.1, 0]].forEach(o => mesh(new THREE.BoxGeometry(0.15, 0.9, 1.6), crateMat, cr.x + o[0], 0.55, cr.z, groups.buildings));
+    const lid = mesh(new THREE.BoxGeometry(2.2, 0.12, 1.4), toon(0xb3854a), cr.x + 1.4, 0.75, cr.z - 0.6, groups.buildings);
+    lid.rotation.z = -0.5;
+    mesh(new THREE.ConeGeometry(0.16, 0.7, 6), toon(0xe8c25a), cr.x - 0.5, 1.0, cr.z, groups.buildings, false, false);
+    mesh(new THREE.ConeGeometry(0.16, 0.7, 6), toon(0xe8c25a), cr.x - 0.1, 1.0, cr.z + 0.3, groups.buildings, false, false);
+    mesh(sphere(0.2, 10, 8), toon(0xef7d3c), cr.x + 0.5, 0.95, cr.z - 0.2, groups.buildings, false, false);
+    mesh(sphere(0.18, 10, 8), toon(0x7ec85a), cr.x + 0.6, 0.9, cr.z + 0.35, groups.buildings, false, false);
+    const crateHit = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.6, 2.2), new THREE.MeshBasicMaterial({ visible: false }));
+    crateHit.position.set(cr.x, 0.8, cr.z);
+    crateHit.userData.pickType = 'crate';
+    groups.buildings.add(crateHit);
+    pickables.push(crateHit);
+
+    // 屋顶积雪（暴雪 / 冬季显示，applyTheme 控制）
+    groups.snowCaps = [];
+    const snowMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const cap1 = mesh(new THREE.ConeGeometry(2.2, 0.9, 4), snowMat, h.x, 5.3, h.z, groups.buildings, false, false);
+    cap1.rotation.y = Math.PI / 4;
+    cap1.visible = false;
+    groups.snowCaps.push(cap1);
+    const cap2 = mesh(new THREE.BoxGeometry(5.5, 0.2, 4.9), snowMat, b.x, 3.55, b.z, groups.buildings, false, false);
+    cap2.visible = false;
+    groups.snowCaps.push(cap2);
+    const cap3 = mesh(new THREE.BoxGeometry(5.6, 0.2, 4.7), snowMat, wh.x, 3.85, wh.z, groups.buildings, false, false);
+    cap3.visible = false;
+    groups.snowCaps.push(cap3);
+
+    // 矿山：整座山、山脚洞口（确认稿 mine v3）；洞口朝南（朝牧场），矿车轨道向南铺
     const m = LAYOUT.mine;
-    const rockArch = mesh(new THREE.TorusGeometry(1.8, 0.7, 10, 18, Math.PI), toon(0x9a8877), m.x, 0.1, m.z, groups.buildings);
-    rockArch.rotation.x = 0;
-    const cave = mesh(new THREE.CircleGeometry(1.7, 20), new THREE.MeshBasicMaterial({ color: 0x2b2620 }), m.x, 1.6, m.z + 0.05, groups.buildings, false, false);
+    const mountain = mesh(sphere(5.5, 24, 18), toon(0x9a8a7a), m.x, 0.2, m.z, groups.buildings);
+    mountain.scale.set(1, 0.72, 1);
+    outline(mountain, 1.01, 0x6a5a4a);
+    const peak2 = mesh(new THREE.ConeGeometry(2.8, 3.8, 8), toon(0x8a7a6a), m.x + 2.5, 1.8, m.z - 3.5, groups.buildings);
+    void peak2;
+    // 山坡松树
+    [[m.x - 3, m.z + 4.2], [m.x + 2.5, m.z + 3.8], [m.x - 4, m.z - 2]].forEach(tp => {
+      mesh(new THREE.CylinderGeometry(0.18, 0.26, 1.4, 7), toon(0x7a5636), tp[0], 1.6, tp[1], groups.buildings, false, false);
+      mesh(new THREE.ConeGeometry(1.0, 2.4, 8), toon(0x4f8f3a), tp[0], 3.4, tp[1], groups.buildings, false, false);
+    });
+    // 矿脉：铜 / 银 / 金 / 蓝水晶（嵌在朝牧场的南坡上）
+    [[20.6, 2.4, 3.4, 0xb87333], [21.2, 1.2, 4.6, 0xd8d8d8], [22.4, 3.2, 3.0, 0xffd24a],
+     [24.5, 1.0, 4.4, 0x66ccff], [26.5, 2.6, 3.2, 0xb87333], [28.2, 1.4, 2.2, 0xffd24a]].forEach(o => {
+      const ore = mesh(new THREE.OctahedronGeometry(0.34, 0), new THREE.MeshLambertMaterial({ color: o[3], emissive: o[3], emissiveIntensity: 0.25 }), o[0], o[1], o[2], groups.buildings, false, false);
+      ore.rotation.set(Math.random(), Math.random(), 0);
+    });
+    // 洞口（朝南）：石拱 + 黑洞 + 暖灯 + 镐 + 矿车轨道
+    const ez = 5.0;
+    const rockArch = mesh(new THREE.TorusGeometry(1.8, 0.7, 10, 18, Math.PI), toon(0x9a8877), 23, 0.1, ez, groups.buildings);
+    const cave = mesh(new THREE.CircleGeometry(1.7, 20), new THREE.MeshBasicMaterial({ color: 0x2b2620 }), 23, 1.6, ez + 0.05, groups.buildings, false, false);
     void cave;
+    mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.6, 6), toon(0x6b4a2a), 21.2, 0.8, ez + 1.2, groups.buildings, false, false);
+    const lamp = mesh(sphere(0.22, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffd98a }), 21.2, 1.7, ez + 1.2, groups.buildings, false, false);
+    void lamp;
+    mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 6), toon(0x8a6242), 24.8, 0.55, ez + 1.4, groups.buildings, false, false).rotation.z = 0.7;
+    mesh(new THREE.BoxGeometry(0.5, 0.14, 0.14), toon(0x9aa3ad), 24.8, 1.05, ez + 1.4, groups.buildings, false, false);
+    mesh(new THREE.BoxGeometry(0.16, 0.08, 3.6), toon(0x6b4a2a), 22.6, 0.06, ez + 2.4, groups.buildings, false, false);
+    mesh(new THREE.BoxGeometry(0.16, 0.08, 3.6), toon(0x6b4a2a), 23.4, 0.06, ez + 2.4, groups.buildings, false, false);
+    const cart = mesh(new THREE.BoxGeometry(1.1, 0.6, 0.8), toon(0x8d5a2b), 23, 0.42, ez + 3.6, groups.buildings);
+    void cart;
+    mesh(sphere(0.2, 8, 8), toon(0x9a8a7a), 23, 0.8, ez + 3.6, groups.buildings, false, false);
     const mineTop = new THREE.Mesh(new THREE.CircleGeometry(1.75, 20), new THREE.MeshBasicMaterial({ color: 0x1d1a16 }));
-    mineTop.position.set(m.x, 1.7, m.z - 0.02);
+    mineTop.position.set(23, 1.7, ez);
     groups.buildings.add(mineTop);
     groups.minePick = mineTop;
     mineTop.userData.pickType = 'mine';
@@ -271,6 +418,39 @@ window.Scene = (function () {
           specks.push(sp);
         }
 
+        // 荒地杂草 + 石头（未耕地时显示，乱一点、不种花）；干裂纹（已耕未浇水无作物时显示）
+        const weedGroup = new THREE.Group();
+        weedGroup.position.set(x, 0.3, z);
+        groups.field.add(weedGroup);
+        const weedMat = new THREE.MeshLambertMaterial({ color: 0x6da34a });
+        const weedMat2 = new THREE.MeshLambertMaterial({ color: 0x8a9a4a });
+        [[-0.5, -0.4, 0.5], [0.45, 0.3, 0.42], [0.1, -0.55, 0.62], [-0.2, 0.5, 0.38]].forEach((w, wi) => {
+          const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.16, w[2], 5), wi % 2 ? weedMat2 : weedMat);
+          tuft.position.set(w[0], w[2] / 2, w[1]);
+          tuft.rotation.z = (wi - 1.5) * 0.25;
+          tuft.castShadow = false;
+          weedGroup.add(tuft);
+        });
+        const stoneMat = new THREE.MeshLambertMaterial({ color: 0xa9a29a });
+        [[0.55, -0.35, 0.16], [-0.6, 0.15, 0.12]].forEach(st => {
+          const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(st[2], 0), stoneMat);
+          rock.position.set(st[0], 0.06, st[1]);
+          rock.scale.y = 0.6;
+          rock.castShadow = false;
+          weedGroup.add(rock);
+        });
+        const crackGroup = new THREE.Group();
+        crackGroup.position.set(x, 0.295, z);
+        crackGroup.visible = false;
+        groups.field.add(crackGroup);
+        const crackMat = new THREE.MeshBasicMaterial({ color: 0x5e4630 });
+        [[0, 0.1, 0, 1.5], [0.3, -0.2, 0.5, 1.1], [-0.35, 0.35, -0.6, 0.9], [0.1, 0.45, 1.1, 0.7]].forEach(c => {
+          const line = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.01, c[3]), crackMat);
+          line.position.set(c[0], 0, c[1]);
+          line.rotation.y = c[2];
+          crackGroup.add(line);
+        });
+
         // 成熟作物在地块上方的专属图标（Sprite，仅成熟时显示）
         const iconSprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
         iconSprite.position.set(x, 1.02, z);
@@ -284,46 +464,143 @@ window.Scene = (function () {
         soilHit.userData.index = idx;
         groups.field.add(soilHit);
         pickables.push(soilHit);
-        plotMeshes.push({ soil: soil, grass: grass, cropGroup: cropGroup, fertGroup: fertGroup, specks: specks, iconSprite: iconSprite, x: x, z: z, soilHit: soilHit });
+        plotMeshes.push({ soil: soil, grass: grass, cropGroup: cropGroup, fertGroup: fertGroup, specks: specks, iconSprite: iconSprite, weedGroup: weedGroup, crackGroup: crackGroup, x: x, z: z, soilHit: soilHit });
         cropMeshes.push({ group: cropGroup, model: null, built: '', ripe: false });
       }
     }
   }
 
+  /* 8 个大栏：2 行 × 4 列木栅栏（栏间距大，中间是宽草地）；每栏北面开一个门，门扇向外敞开 */
+  /* 栏杆按 key 查（LAYOUT.pens 是显式列表：牛/羊并排，鸡/兔/羊驼各一整栏，空栏 2 个） */
+  function penByKey(key) {
+    const P = LAYOUT.pens.find(p => p.key === key);
+    if (!P) return null;
+    return { minX: P.minX, maxX: P.minX + P.w, minZ: P.minZ, maxZ: P.minZ + P.d, cx: P.minX + P.w / 2, cz: P.minZ + P.d / 2 };
+  }
+
   function buildFence() {
-    const P = LAYOUT.pasture;
     const postMat = toon(0xc08a55);
     const railMat = toon(0xdba469);
     const postGeo = new THREE.CylinderGeometry(0.14, 0.16, 1.5, 7);
-    const railGeo = new THREE.BoxGeometry(1.4, 0.16, 0.12);
-    const step = 2.2;
-    const segments = [];
-
-    for (let x = P.minX; x <= P.maxX + 0.01; x += step) {
-      segments.push({ x: x, z: P.minZ, rot: 0, dir: 'x' });
-      segments.push({ x: x, z: P.maxZ, rot: 0, dir: 'x' });
-    }
-    for (let z = P.minZ; z <= P.maxZ + 0.01; z += step) {
-      segments.push({ x: P.minX, z: z, rot: Math.PI / 2, dir: 'z' });
-      segments.push({ x: P.maxX, z: z, rot: Math.PI / 2, dir: 'z' });
-    }
-    segments.forEach(s => {
-      mesh(postGeo, postMat, s.x, 0.75, s.z, groups.props);
-      for (let k = 0; k < 2; k++) {
-        const r = mesh(railGeo, railMat, s.x, 0.5 + k * 0.55, s.z, groups.props);
-        r.rotation.y = s.rot;
+    const step = 2.6;   // 立柱间距（大栏杆用整条横栏，减少网格数）
+    /* 每条边 = 两条整长横栏（门洞处断开）+ 立柱 */
+    const railSide = (x0, z0, x1, z1, gateX) => {
+      const len = Math.hypot(x1 - x0, z1 - z0);
+      const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+      const horiz = Math.abs(z1 - z0) < 0.01;
+      const segs = [];
+      if (gateX === null || gateX === undefined) { segs.push([mx, mz, len]); }
+      else {
+        const along = horiz ? mx : mz;   // 门洞只开在北边横栏上
+        const half = len / 2, gHalf = 1.4;
+        const c = horiz ? (x0 + x1) / 2 : (z0 + z1) / 2;
+        const leftLen = (gateX - gHalf) - (c - half), rightLen = (c + half) - (gateX + gHalf);
+        if (leftLen > 0.3) segs.push([horiz ? (c - half + gateX - gHalf) / 2 : mx, horiz ? mz : (c - half + gateX - gHalf) / 2, leftLen]);
+        if (rightLen > 0.3) segs.push([horiz ? (gateX + gHalf + c + half) / 2 : mx, horiz ? mz : (gateX + gHalf + c + half) / 2, rightLen]);
+        void along;
       }
+      segs.forEach(s => {
+        for (let k = 0; k < 2; k++) {
+          const rail = mesh(new THREE.BoxGeometry(horiz ? s[2] : 0.12, 0.16, horiz ? 0.12 : s[2]), railMat, s[0], 0.5 + k * 0.55, s[1], groups.props);
+          void rail;
+        }
+      });
+    };
+    LAYOUT.pens.forEach(P => {
+      const R = penByKey(P.key);
+      const gateZ = R.minZ;   // 门一律开在北面（朝放牧空地方向，放牧从这里走出去）
+      /* 立柱（门口不立柱；末端用 Math.min 补角柱） */
+      for (let x = R.minX; x <= R.maxX + step; x += step) {
+        [R.minZ, R.maxZ].forEach(z => {
+          if (z === gateZ && Math.abs(Math.min(x, R.maxX) - R.cx) < 1.4) return;
+          mesh(postGeo, postMat, Math.min(x, R.maxX), 0.75, z, groups.props);
+        });
+      }
+      for (let z = R.minZ; z <= R.maxZ + step; z += step) {
+        [R.minX, R.maxX].forEach(x => { mesh(postGeo, postMat, x, 0.75, Math.min(z, R.maxZ), groups.props); });
+      }
+      /* 横栏：北边留门洞，其余三边整条 */
+      railSide(R.minX, gateZ, R.maxX, gateZ, R.cx);
+      railSide(R.minX, R.maxZ, R.maxX, R.maxZ, null);
+      railSide(R.minX, R.minZ, R.minX, R.maxZ, null);
+      railSide(R.maxX, R.minZ, R.maxX, R.maxZ, null);
+      /* 敞开的门扇：X 撑木门，铰在左门柱上、向外张开约 100° */
+      const gate = new THREE.Group();
+      gate.position.set(R.cx - 1.3, 0, gateZ);
+      gate.rotation.y = -1.9;
+      groups.props.add(gate);
+      mesh(new THREE.BoxGeometry(1.7, 1.05, 0.09), railMat, 0.85, 0.55, 0, gate);
+      const diag = mesh(new THREE.BoxGeometry(1.9, 0.1, 0.06), postMat, 0.85, 0.55, 0.06, gate, false, false);
+      diag.rotation.z = 0.55;
+      const diag2 = mesh(new THREE.BoxGeometry(1.9, 0.1, 0.06), postMat, 0.85, 0.55, 0.06, gate, false, false);
+      diag2.rotation.z = -0.55;
+    });
+    // 空栏布置：empty1 种花、empty2 放干草堆
+    const flowerPen = penByKey('empty1');
+    const petalMat = new THREE.MeshLambertMaterial({ color: 0xff8fb0 });
+    const petalMat2 = new THREE.MeshLambertMaterial({ color: 0xffd76a });
+    for (let i = 0; i < 6; i++) {
+      const fx = flowerPen.minX + 1.2 + (i % 3) * 2.2, fz = flowerPen.minZ + 1.4 + Math.floor(i / 3) * 2.4;
+      mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.7, 6), toon(0x5f9f42), fx, 0.35, fz, groups.props, false, false);
+      const bloom = mesh(sphere(0.3, 10, 8), i % 2 ? petalMat2 : petalMat, fx, 0.78, fz, groups.props, false, false);
+      bloom.scale.y = 0.7;
+    }
+    const hayPen = penByKey('empty2');
+    const hayMat = toon(0xe8c25a);
+    [[-1.2, -1], [1.2, 0.8], [0, 1.6]].forEach(h => {
+      const bale = mesh(new THREE.CylinderGeometry(0.7, 0.7, 1.1, 12), hayMat, hayPen.cx + h[0], 0.7, hayPen.cz + h[1], groups.props);
+      bale.rotation.z = Math.PI / 2;
+      bale.rotation.y = h[0];
     });
   }
 
+  /* 放牧空地：栏杆区上方一大块椭圆草地（够 10 只动物一起出来），边缘草丛 + 野花 + 木牌 */
+  function buildMeadow() {
+    const M = LAYOUT.meadow;
+    const cx = (M.minX + M.maxX) / 2, cz = (M.minZ + M.maxZ) / 2;
+    const oval = mesh(new THREE.CircleGeometry(17, 40), new THREE.MeshLambertMaterial({ color: 0xa8e07e }), cx, 0.02, cz, groups.terrain, false, true);
+    oval.rotation.x = -Math.PI / 2;
+    oval.scale.set(1, 0.22, 1);
+    // 边缘草丛圈
+    const tuftMat = new THREE.MeshLambertMaterial({ color: 0x7ec85a });
+    for (let i = 0; i < 26; i++) {
+      const a = (i / 26) * Math.PI * 2;
+      const tx = cx + Math.cos(a) * 16.6, tz = cz + Math.sin(a) * 3.6;
+      const tuft = mesh(new THREE.ConeGeometry(0.22, 0.8, 5), tuftMat, tx, 0.4, tz, groups.terrain, false, false);
+      tuft.rotation.z = (Math.random() - 0.5) * 0.4;
+    }
+    // 野花
+    const petalCols = [0xff8fb0, 0xffd76a, 0xffffff, 0xc9a6dc];
+    for (let i = 0; i < 12; i++) {
+      const fx = M.minX + 2 + Math.random() * (M.maxX - M.minX - 4);
+      const fz = M.minZ + 1 + Math.random() * (M.maxZ - M.minZ - 2);
+      mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 5), toon(0x5f9f42), fx, 0.2, fz, groups.terrain, false, false);
+      mesh(sphere(0.16, 8, 8), new THREE.MeshLambertMaterial({ color: petalCols[i % 4] }), fx, 0.44, fz, groups.terrain, false, false);
+    }
+    // 木牌「放牧草地」
+    mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.4, 6), toon(0x8a6242), cx, 0.7, M.maxZ + 0.6, groups.props);
+    const board = mesh(new THREE.BoxGeometry(2.4, 0.9, 0.12), toon(0xd8b074), cx, 1.5, M.maxZ + 0.6, groups.props);
+    outline(board, 1.04, 0x6a5546);
+    const cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 96;
+    const c2 = cv.getContext('2d');
+    c2.fillStyle = '#fff8ea'; c2.fillRect(0, 0, 256, 96);
+    c2.fillStyle = '#5e4630'; c2.font = 'bold 44px sans-serif'; c2.textAlign = 'center'; c2.textBaseline = 'middle';
+    c2.fillText('放牧草地', 128, 50);
+    const tex = new THREE.CanvasTexture(cv);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.82), new THREE.MeshBasicMaterial({ map: tex }));
+    sign.position.set(cx, 1.5, M.maxZ + 0.68);
+    groups.props.add(sign);
+  }
+
   function buildProps() {
-    // 树
+    // 树（v11：旁边树少一点，只留 8 棵边树 + 松鼠树 2 棵，不挡栏杆和建筑；多放花朵、三叶草、杂草）
     const trunkMat = toon(0x8a6242);
     const trunkGeo = new THREE.CylinderGeometry(0.28, 0.4, 2.2, 8);
     groups.foliage = [];
     const spots = [
-      [-17, -14], [-13, -16], [16, -13], [18, -6], [-18, 1], [19, 2], [-16, 15], [16, 17],
-      [-5, 19], [7, 19], [-19, -6], [4, -16], [-9, 17], [13, 14], [-21, 10], [21, -14]
+      [-21, -30], [21, -28], [-22, -14], [22, -12], [-23, 8], [21, 6], [-22, 16], [22, 18],
+      [14, 27], [-14, 27]   // 松鼠树（东边这棵是松鼠的家）
     ];
     spots.forEach((p, i) => {
       mesh(trunkGeo, trunkMat, p[0], 1.1, p[1], groups.props);
@@ -340,21 +617,168 @@ window.Scene = (function () {
       groups.foliage.push(fol);
     });
 
-    // 石头
+    // 花朵 / 三叶草 / 杂草：沿两侧草地 + 牧场空地边缘散放（v11）
+    const flowerCols = [0xff8fb0, 0xffd76a, 0xffffff, 0xc9a6dc, 0xff9d9d];
+    const stemGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.5, 5);
+    const bloomGeo = sphere(0.17, 8, 8);
+    const cloverGeo = new THREE.CircleGeometry(0.3, 8);
+    const cloverMat = new THREE.MeshLambertMaterial({ color: 0x4f9e3a });
+    const weedGeo = new THREE.ConeGeometry(0.18, 0.75, 5);
+    const weedMat = new THREE.MeshLambertMaterial({ color: 0x7ec85a });
+    for (let i = 0; i < 56; i++) {
+      const side = i % 2 ? 1 : -1;
+      const x = side * (18.5 + Math.random() * 5), z = -36 + Math.random() * 68;
+      const kind = i % 3;
+      if (kind === 0) {
+        mesh(stemGeo, toon(0x5f9f42), x, 0.25, z, groups.props, false, false);
+        mesh(bloomGeo, new THREE.MeshLambertMaterial({ color: flowerCols[i % flowerCols.length] }), x, 0.55, z, groups.props, false, false);
+      } else if (kind === 1) {
+        for (let k = 0; k < 3; k++) {
+          const leaf = mesh(cloverGeo, cloverMat, x + (k - 1) * 0.32, 0.06, z + (k % 2) * 0.28 - 0.14, groups.props, false, false);
+          leaf.rotation.x = -Math.PI / 2;
+        }
+      } else {
+        const w = mesh(weedGeo, weedMat, x, 0.36, z, groups.props, false, false);
+        w.rotation.z = (Math.random() - 0.5) * 0.4;
+      }
+    }
+
+    // 石头（避开竖条牧场区和农田）
     const rockMat = toon(0xa9a29a);
     for (let i = 0; i < 9; i++) {
       const x = -20 + Math.random() * 40, z = -18 + Math.random() * 36;
-      if (x > -9 && x < 9 && z > -13 && z < -1) continue;
-      if (x > -12 && x < 12 && z > 0 && z < 13) continue;
+      if (x > -17 && x < 17 && z > -30 && z < 15) continue;   // 牧场竖条
+      if (x > 23 && x < 38 && z > -21 && z < -11) continue;   // 农田
       const r = mesh(new THREE.DodecahedronGeometry(0.55 + Math.random() * 0.6, 0), rockMat, x, 0.35, z, groups.props);
       r.rotation.set(Math.random(), Math.random(), Math.random());
       r.scale.y = 0.75;
     }
 
-    // 木牌
-    const sign = mesh(new THREE.BoxGeometry(1.5, 0.9, 0.12), toon(0xd8b074), -3.5, 1.3, -0.4, groups.props);
+    // 木牌（移到羊驼栏与空栏之间的走道上）
+    const sign = mesh(new THREE.BoxGeometry(1.5, 0.9, 0.12), toon(0xd8b074), 0, 1.3, 6.5, groups.props);
     void sign;
-    mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.6, 6), toon(0x8a6242), -3.5, 0.6, -0.4, groups.props);
+    mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.6, 6), toon(0x8a6242), 0, 0.6, 6.5, groups.props);
+  }
+
+  /* 松鼠：平时在树上，下来到地上啃果实（啃食动作：低头快速点啄）；体型很迷你，约猫的一半大（v11/v12） */
+  const SQUIRREL_TREE = { x: 14, z: 27, perchY: 3.3 };
+  const SQUIRREL_FRUITS = [[15.5, 28.5], [12.8, 25.8], [15.8, 25.5]];
+  const SQ_SCALE = 0.4;
+
+  function buildSquirrel() {
+    const g = new THREE.Group();
+    const body = mesh(sphere(0.34, 16, 12), toon(0xb5763c), 0, 0.42, 0, g);
+    body.scale.set(0.9, 1, 1.15);
+    outline(body, 1.05, 0x5c3b22);
+    const head = mesh(sphere(0.24, 16, 12), toon(0xb5763c), 0, 0.82, 0.18, g);
+    outline(head, 1.06, 0x5c3b22);
+    makeEyes(head, 0.07, 0.1, 0.04, 0.2);
+    for (let s = -1; s <= 1; s += 2) {
+      const ear = mesh(new THREE.ConeGeometry(0.07, 0.22, 6), toon(0x9a5f30), 0.13 * s, 1.04, 0.14, g);
+      ear.rotation.z = s * 0.25;
+    }
+    const tail = mesh(sphere(0.3, 14, 12), toon(0xd08a4a), 0, 0.72, -0.42, g);
+    tail.scale.set(0.7, 1.25, 0.5);
+    tail.rotation.x = -0.5;
+    outline(tail, 1.04, 0x5c3b22);
+    g.position.set(SQUIRREL_TREE.x, SQUIRREL_TREE.perchY, SQUIRREL_TREE.z);
+    g.rotation.y = 0.8;
+    g.scale.setScalar(SQ_SCALE);   // 很迷你，约猫的一半大
+    groups.animals.add(g);
+    // 树下落果（松鼠啃食的目标）
+    SQUIRREL_FRUITS.forEach(f => {
+      mesh(sphere(0.16, 10, 8), toon(0xe14b3f), f[0], 0.16, f[1], groups.props, false, false);
+      mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 5), toon(0x5f9f42), f[0], 0.3, f[1], groups.props, false, false);
+    });
+    squirrelRig = { group: g, head: head, tail: tail, state: 'tree', timer: 6 + Math.random() * 6, t: 0, from: null, to: null, fruit: null, leg: 0 };
+    // 点按松鼠的拾取体（跟着松鼠走；点到就逃跑，不给爱心气泡）
+    // 注意：拾取球是松鼠组的子物体，会随组缩放，半径按 SQ_SCALE 反推，保证世界尺寸约 0.9
+    const sqHit = new THREE.Mesh(new THREE.SphereGeometry(0.9 / SQ_SCALE, 8, 8), new THREE.MeshBasicMaterial({ visible: false }));
+    sqHit.position.set(0, 1.2, 0);
+    sqHit.userData.pickType = 'squirrel';
+    g.add(sqHit);
+    pickables.push(sqHit);
+  }
+
+  /** 摸了松鼠：立马逃到树上躲起来（先窜回树根、爬上树、缩在树干后），过一会儿再探头 */
+  function fleeSquirrel() {
+    const sq = squirrelRig;
+    if (!sq || sq.state === 'flee' || sq.state === 'hide' || sq.state === 'peek') return;
+    sq.head.rotation.x = 0;
+    sq.from = sq.group.position.clone();
+    sq.to = new THREE.Vector3(SQUIRREL_TREE.x, 0, SQUIRREL_TREE.z);
+    sq.state = 'flee'; sq.t = 0; sq.leg = 1;
+  }
+
+  function updateSquirrel(dt) {
+    const sq = squirrelRig;
+    if (!sq) return;
+    sq.t += dt;
+    if (sq.state === 'flee') {
+      // 两段逃跑：先窜回树根，再爬上树躲到树干后
+      const k = Math.min(1, sq.t / 0.45);
+      sq.group.position.lerpVectors(sq.from, sq.to, k);
+      sq.group.position.y += Math.sin(k * Math.PI) * 0.7;
+      sq.group.rotation.y = Math.atan2(sq.to.x - sq.from.x, sq.to.z - sq.from.z);
+      if (k >= 1) {
+        if (sq.leg === 1) {
+          sq.from = sq.group.position.clone();
+          sq.to = new THREE.Vector3(SQUIRREL_TREE.x + 0.3, 3.6, SQUIRREL_TREE.z - 0.7);
+          sq.state = 'flee'; sq.t = 0; sq.leg = 2;
+        } else {
+          sq.state = 'hide'; sq.timer = 6 + Math.random() * 4;
+          sq.group.scale.y = SQ_SCALE * 0.7;   // 缩在树干后躲起来
+        }
+      }
+      return;
+    }
+    if (sq.state === 'hide') {
+      sq.timer -= dt;
+      if (sq.timer <= 0) {
+        sq.from = sq.group.position.clone();
+        sq.to = new THREE.Vector3(SQUIRREL_TREE.x, SQUIRREL_TREE.perchY, SQUIRREL_TREE.z + 0.3);
+        sq.state = 'peek'; sq.t = 0;
+        sq.group.scale.y = SQ_SCALE;
+      }
+      return;
+    }
+    if (sq.state === 'peek') {
+      const k = Math.min(1, sq.t / 0.5);
+      sq.group.position.lerpVectors(sq.from, sq.to, k);
+      sq.group.rotation.y = 0.8;
+      if (k >= 1) { sq.state = 'tree'; sq.timer = 8 + Math.random() * 8; }
+      return;
+    }
+    if (sq.state === 'tree') {
+      sq.tail.rotation.z = Math.sin(sq.t * 2.2) * 0.18;
+      sq.timer -= dt;
+      if (sq.timer <= 0) {
+        sq.fruit = SQUIRREL_FRUITS[Math.floor(Math.random() * SQUIRREL_FRUITS.length)];
+        sq.from = sq.group.position.clone();
+        sq.to = new THREE.Vector3(sq.fruit[0], 0, sq.fruit[1]);
+        sq.state = 'down'; sq.t = 0;
+      }
+    } else if (sq.state === 'down' || sq.state === 'up') {
+      const k = Math.min(1, sq.t / 0.9);
+      sq.group.position.lerpVectors(sq.from, sq.to, k);
+      sq.group.position.y += Math.sin(k * Math.PI) * 0.9;   // 跳跃弧线
+      sq.group.rotation.y = Math.atan2(sq.to.x - sq.from.x, sq.to.z - sq.from.z);
+      if (k >= 1) {
+        if (sq.state === 'down') { sq.state = 'gnaw'; sq.timer = 3 + Math.random() * 2; sq.t = 0; }
+        else { sq.state = 'tree'; sq.timer = 8 + Math.random() * 8; sq.group.rotation.y = 0.8; }
+      }
+    } else if (sq.state === 'gnaw') {
+      // 啃食：低头快速点啄 + 身体轻抖
+      sq.head.rotation.x = 0.35 + Math.abs(Math.sin(sq.t * 9)) * 0.3;
+      sq.group.position.y = Math.abs(Math.sin(sq.t * 9)) * 0.03;
+      sq.timer -= dt;
+      if (sq.timer <= 0) {
+        sq.head.rotation.x = 0;
+        sq.from = sq.group.position.clone();
+        sq.to = new THREE.Vector3(SQUIRREL_TREE.x, SQUIRREL_TREE.perchY, SQUIRREL_TREE.z);
+        sq.state = 'up'; sq.t = 0;
+      }
+    }
   }
 
   /* ======================= Q 版动物建模 ======================= */
@@ -586,7 +1010,7 @@ window.Scene = (function () {
   /* ======================= 动物同步与动画 ======================= */
 
   function animalSignature(state) {
-    return state.animals.map(a => a.id + a.type + a.grazing + a.produceReady + a.sick + Math.floor(a.points / 25)).join('|') +
+    return state.animals.map(a => a.id + a.type + a.produceReady + a.sick + Math.floor(a.points / 25)).join('|') +
       '|' + (state.horse.owned ? 'H' : '-') + (state.horse.riding ? 'R' : '-') + (state.dog.owned ? 'D' : '-') +
       // 飞禽伙伴领养状态变化也要重建（老鹰 / 鸬鹚的 3D 模型随之出现或移除）
       '|' + ((state.pets && state.pets.eagle && state.pets.eagle.owned) ? 'E' : '-') +
@@ -601,10 +1025,17 @@ window.Scene = (function () {
     return 'gray';
   }
 
-  /** 撒娇爱心指示：低心灰 / 中黄 / 高红（几何拼成的小爱心，避免 file:// 下贴图受限） */
+  /** 撒娇爱心指示：对话气泡 + 爱心（低心灰 / 中黄 / 高红），气泡底保持白色不参与变色 */
   function charmHeartMesh(color) {
     const g = new THREE.Group();
     const mat = new THREE.MeshBasicMaterial({ color: color });
+    // 气泡底：白色圆底 + 小尾巴（变色时跳过，见 updateAnimal 里的 traverse）
+    const bubbleMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    bubbleMat.userData.keep = true;
+    const bubble = mesh(sphere(0.36, 14, 12), bubbleMat, 0, 0.02, -0.14, g, false, false);
+    bubble.scale.set(1.25, 1.05, 0.5);
+    const tail = mesh(new THREE.ConeGeometry(0.09, 0.2, 6), bubbleMat, 0.12, -0.36, -0.14, g, false, false);
+    tail.rotation.x = 0.5;
     mesh(sphere(0.17, 12, 12), mat, -0.13, 0.09, 0, g, false, false);
     mesh(sphere(0.17, 12, 12), mat, 0.13, 0.09, 0, g, false, false);
     const tip = mesh(new THREE.ConeGeometry(0.245, 0.32, 4), mat, 0, -0.17, 0, g, false, false);
@@ -612,6 +1043,20 @@ window.Scene = (function () {
     tip.rotation.y = Math.PI / 4;
     g.visible = false;
     return g;
+  }
+
+  /** emoji 贴图精灵（生病 💔 指示用；canvas 现画现用，file:// 下可用） */
+  function emojiSprite(emoji, scale) {
+    const cv = document.createElement('canvas');
+    cv.width = 128; cv.height = 128;
+    const cx = cv.getContext('2d');
+    cx.font = '96px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText(emoji, 64, 70);
+    const tex = new THREE.CanvasTexture(cv);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    sp.scale.set(scale, scale, 1);
+    return sp;
   }
 
   /** 把撒娇爱心挂到动物头顶：低心灰 / 中黄 / 高红（点击动物后浮现） */
@@ -656,6 +1101,41 @@ window.Scene = (function () {
     return box;
   }
 
+  /* 马 / 狗 / 猫的自由活动区（全场随意跑，不受栏杆限制；猫可以翻栏杆，走道也算活动区） */
+  const FREE_RECTS = [
+    { minX: -14, maxX: 14, minZ: 24, maxZ: 30 },      // 南边散养大草地
+    { minX: -13, maxX: 13, minZ: -37, maxZ: -32.5 }, // 放牧空地也可以去
+    { minX: -17, maxX: 17, minZ: 5.5, maxZ: 7.5 },   // 羊驼栏与空栏之间的走道
+    { minX: -17, maxX: 17, minZ: -21, maxZ: -19 },   // 牛羊栏与鸡栏之间的走道
+    { minX: 17, maxX: 19, minZ: -30, maxZ: 30 }      // 东侧通道
+  ];
+  /* 放牧出栏路径：从各栏北门走出去（穿门洞，不穿墙），到放牧空地；收回时原路返回
+     牛/羊栏直通空地；鸡栏走两栏中间的缝；兔/羊驼栏先沿栏间走道往西，再从西侧北上 */
+  const GRAZE_ROUTES = {
+    cow: [[-8.5, -29], [-8.5, -33.5]],
+    sheep: [[8.5, -29], [8.5, -33.5]],
+    chicken: [[0, -19], [0, -21.5], [0, -33.5]],
+    anjela: [[0, -10], [-17.5, -11], [-17.5, -33.5]],
+    llama: [[0, -1.5], [-17.5, -2.5], [-17.5, -33.5]]
+  };
+  /* 猫上屋顶的落点（农舍 / 谷仓屋顶）与屋前起跳点 */
+  const ROOF_SPOTS = [
+    { x: 14, z: 19.8, y: 4.4, gx: 14, gz: 22.5 },
+    { x: -20, z: -6, y: 3.6, gx: -20, gz: -2.5 }
+  ];
+
+  /* 按当前区域取一个散步范围：栏内 / 放牧空地 / 自由活动区 */
+  function roamRectFor(rig) {
+    if (rig.zone === 'meadow') {
+      const M = LAYOUT.meadow;
+      return { minX: M.minX + 1.5, maxX: M.maxX - 1.5, minZ: M.minZ + 1, maxZ: M.maxZ - 1 };
+    }
+    if (rig.zone === 'free') return FREE_RECTS[Math.floor(Math.random() * FREE_RECTS.length)];
+    const R = rig.penKey ? penByKey(rig.penKey) : null;
+    if (R) return { minX: R.minX + 0.7, maxX: R.maxX - 0.7, minZ: R.minZ + 0.7, maxZ: R.maxZ - 0.7 };
+    return { minX: -5, maxX: 5, minZ: 8, maxZ: 12 };
+  }
+
   function spawnAnimals(state) {
     animalRigs.forEach(r => groups.animals.remove(r.group));
     animalRigs = [];
@@ -666,46 +1146,87 @@ window.Scene = (function () {
     // 清掉上一轮注册的动物拾取对象，避免已移除的网格残留在拾取列表
     pickables = pickables.filter(o => !(o.userData && o.userData.pickType === 'animal'));
 
-    const P = LAYOUT.pasture;
-    state.animals.forEach((a, i) => {
+    /* 栏内网格站位（动物按真实比例缩小后，栏里仍有空地走动） */
+    const penSlots = (key, n) => {
+      const R = penByKey(key);
+      const cols = Math.max(1, Math.ceil(Math.sqrt(n * (R.maxX - R.minX) / (R.maxZ - R.minZ))));
+      const rows = Math.max(1, Math.ceil(n / cols));
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        const c = i % cols, r = Math.floor(i / cols);
+        out.push({
+          x: R.minX + (c + 0.5) * (R.maxX - R.minX) / cols,
+          z: R.minZ + (r + 0.5) * (R.maxZ - R.minZ) / rows
+        });
+      }
+      return out;
+    };
+    const penCount = {};
+    const typeCount = {};
+    state.animals.forEach(a => { typeCount[a.type] = (typeCount[a.type] || 0) + 1; });
+    state.animals.forEach(a => {
       const rig = buildRigFor(a);
       rig.id = a.id;
-      const ang = (i / Math.max(1, state.animals.length)) * Math.PI * 2;
-      rig.group.position.set(P.minX + 3 + (i % 4) * 5 + Math.random(), 0, P.minZ + 2.5 + Math.floor(i / 4) * 4.5 + Math.random());
+      rig.type = a.type;
+      const tScale = (D.animalTypes[a.type] && D.animalTypes[a.type].scale) || 1;
+      rig.baseScale = tScale;
+      rig.baseY = 0;
+      rig.zone = 'pen';
+      rig.eating = 0; rig.eatTimer = 2 + Math.random() * 4;
+      rig.trip = null; rig.roof = null;
+      const key = LAYOUT.penOf[a.type];
+      const idx = (penCount[a.type] = (penCount[a.type] || 0));
+      penCount[a.type] = idx + 1;
+      if (a.type === 'cat') {
+        /* 猫散养：全场自由跑，也会上屋顶 */
+        rig.zone = 'free';
+        rig.group.position.set(-6 + Math.random() * 4, 0, 25 + Math.random() * 3);
+      } else if (key) {
+        const slots = penSlots(key, Math.max(1, typeCount[a.type]));
+        const s = slots[Math.min(idx, slots.length - 1)];
+        rig.group.position.set(s.x + (Math.random() - 0.5) * 0.8, 0, s.z + (Math.random() - 0.5) * 0.8);
+        rig.penKey = key;
+      } else {
+        rig.group.position.set(0, 0, 10 + Math.random() * 2);
+      }
       rig.wander = { tx: rig.group.position.x, tz: rig.group.position.z, timer: 1 + Math.random() * 3, speed: 0.5 + Math.random() * 0.4 };
-      void ang;
       rig.group.traverse(o => { if (o.isMesh) { o.userData.pickType = 'animal'; o.userData.animalId = a.id; pickables.push(o); } });
-      addAnimalHitbox(rig.group, a.id, [2.1, 2.5, 2.1]);   // 手机端点选容错
-      attachCharmHeart(rig, 2.5, 1);
+      addAnimalHitbox(rig.group, a.id, [Math.max(0.9, tScale * 1.6), Math.max(1.0, tScale * 1.9), Math.max(0.9, tScale * 1.6)]);   // 手机端点选容错
+      attachCharmHeart(rig, tScale * 1.8 + 0.3, 0.5 + tScale * 0.5);
       groups.animals.add(rig.group);
       animalRigs.push(rig);
     });
 
     if (state.dog.owned) {
-      dogRig = buildDog(1);
-      // 起点放在牧场围栏内靠近狗窝的一角，避免从栏外穿栏进入
-      dogRig.group.position.set(LAYOUT.doghouse.x + 2.6, 0, LAYOUT.doghouse.z + 2.4);
+      dogRig = buildDog(0.48);   // 狗小（v12 比例：约牛的 0.42）
+      dogRig.group.position.set(10, 0, 25);
       dogRig.walkSpeed = 0.95;            // 小狗比马更活跃，走动明显
-      dogRig.id = 'dog';
+      dogRig.id = 'dog'; dogRig.type = 'dog'; dogRig.baseScale = 0.48; dogRig.baseY = 0;
+      dogRig.zone = 'free';
+      dogRig.eating = 0; dogRig.eatTimer = 2 + Math.random() * 4;
+      dogRig.trip = null; dogRig.roof = null;
       dogRig.wander = { tx: dogRig.group.position.x, tz: dogRig.group.position.z, timer: 1.2, pause: false };
-      attachCharmHeart(dogRig, 1.95, 0.8);
+      attachCharmHeart(dogRig, 0.95, 0.6);
       dogRig.group.traverse(o => { if (o.isMesh) { o.userData.pickType = 'animal'; o.userData.animalId = 'dog'; pickables.push(o); } });
-      addAnimalHitbox(dogRig.group, 'dog', [1.6, 1.7, 1.6]);   // 手机端点选容错
+      addAnimalHitbox(dogRig.group, 'dog', [0.9, 1.1, 0.9]);   // 手机端点选容错
       groups.animals.add(dogRig.group);
     }
 
     if (state.horse.owned) {
-      horseRig = buildHorse(1.28);
-      horseRig.group.position.set(LAYOUT.barn.x - 4, 0, LAYOUT.pasture.minZ + 3);
-      horseRig.id = 'horse';
+      horseRig = buildHorse(1.13);   // 马高大（v12 比例：比牛略高）
+      horseRig.group.position.set(-6, 0, 26);
+      horseRig.id = 'horse'; horseRig.type = 'horse'; horseRig.baseScale = 1.13; horseRig.baseY = 0;
+      horseRig.zone = 'free';
       horseRig.walkSpeed = 0.62;
-      attachCharmHeart(horseRig, 3.65, 1.25);
+      horseRig.eating = 0; horseRig.eatTimer = 2 + Math.random() * 4;
+      horseRig.trip = null; horseRig.roof = null;
+      attachCharmHeart(horseRig, 3.2, 1.1);
       horseRig.group.traverse(o => { if (o.isMesh) { o.userData.pickType = 'animal'; o.userData.animalId = 'horse'; pickables.push(o); } });
-      addAnimalHitbox(horseRig.group, 'horse', [2.8, 3.7, 2.8]);   // 手机端点选容错
+      addAnimalHitbox(horseRig.group, 'horse', [1.6, 2.6, 1.6]);   // 手机端点选容错
       horseRig.wander = { tx: horseRig.group.position.x, tz: horseRig.group.position.z, timer: 1.6, pause: false };
       if (state.horse.riding) {
         riderRig = buildRider();
-        riderRig.position.set(0, 2.0, -0.1);
+        riderRig.position.set(0, 1.8, -0.1);
         horseRig.group.add(riderRig);
       }
       groups.animals.add(horseRig.group);
@@ -720,8 +1241,8 @@ window.Scene = (function () {
     if (pets.eagle && pets.eagle.owned) {
       eagleRig = buildPetRig('eagle', 1.1);
       if (eagleRig) {
-        // 航线中心选在牧场上空（投影落在画面中上部），避免贴住屏幕顶端被 HUD 遮挡
-        eagleRig.home = { x: 0, y: 4.2, z: 0.6, rx: 5.2, rz: 3.2 };
+        // 航线中心选在牛羊栏上空（投影落在画面中上部），避免贴住屏幕顶端被 HUD 遮挡
+        eagleRig.home = { x: 0, y: 4.2, z: -14, rx: 5.2, rz: 3.2 };
         eagleRig.group.position.set(eagleRig.home.x + eagleRig.home.rx, eagleRig.home.y, eagleRig.home.z);
         groups.animals.add(eagleRig.group);
       }
@@ -797,9 +1318,9 @@ window.Scene = (function () {
   }
 
   function updateAnimal(rig, dt, state) {
-    const P = LAYOUT.pasture;
     const isHorse = rig.type === 'horse';
     const riding = isHorse && state.horse.riding;
+    if (rig.baseY === undefined) rig.baseY = 0;
 
     // 呼吸
     rig.bob += dt * 2.2;
@@ -807,10 +1328,20 @@ window.Scene = (function () {
       rig.parts.body.scale.y = (rig.parts.body.userData.sy || (rig.parts.body.userData.sy = rig.parts.body.scale.y)) * (1 + Math.sin(rig.bob) * 0.025);
     }
     if (rig.parts.tail) rig.parts.tail.rotation.y = Math.sin(rig.bob * 1.6) * 0.35;
+    // 低头吃东西：吃食状态低头 + 点啄；放牧中的动物在空地也低头吃草；赶路 / 撒娇 / 骑乘时不低头
     if (rig.parts.head) {
-      const targetHeadY = rig.grazing ? -0.5 : 0;
+      const nibble = rig.eating > 0 ? Math.sin(anim.t * 9) * 0.08 : 0;
+      const targetHeadY = (rig.eating > 0 || (rig.grazing && !rig.trip)) ? -0.5 + nibble : 0;
       rig.parts.head.rotation.x += ((rig.parts.head.rotation.x || 0) - targetHeadY) * -dt * 3;
     }
+    // 吃食计时：随机进入吃食状态 2~4 秒，吃完再走
+    if (!rig.trip && !rig.roof && (rig.charm || 0) <= 0 && !riding) {
+      if (rig.eating > 0) { rig.eating -= dt; }
+      else {
+        rig.eatTimer = (rig.eatTimer === undefined ? 2 + Math.random() * 4 : rig.eatTimer) - dt;
+        if (rig.eatTimer <= 0) { rig.eating = 2 + Math.random() * 2; rig.eatTimer = 4 + Math.random() * 6; }
+      }
+    } else if (rig.eating > 0) { rig.eating = 0; }
 
     // 眨眼
     rig.blinkTimer -= dt;
@@ -824,6 +1355,11 @@ window.Scene = (function () {
       (rig.parts.eyes || []).forEach(e => { e.scale.y = (e.userData.sy || (e.userData.sy = e.scale.y)) * s; });
     } else {
       (rig.parts.eyes || []).forEach(e => { e.scale.y = e.userData.sy || 1; });
+    }
+
+    // 摸了享受地眯眼：撒娇期间眼睛眯成细缝（1~2 秒），摸完恢复正常
+    if (rig.charm > 0 && !riding) {
+      (rig.parts.eyes || []).forEach(e => { e.scale.y = (e.userData.sy || 1) * 0.15; });
     }
 
     // 撒娇互动：点击动物后朝玩家蹦跳撒娇，头顶爱心按爱心值显示 灰 / 黄 / 红
@@ -843,7 +1379,7 @@ window.Scene = (function () {
     const charmPoints = aRef ? (aRef.points || 0) : (pet ? (pet.points || 0) : 0);
     if (rig.charm > 0 && !riding) {
       const hop = Math.abs(Math.sin(anim.t * 6)) * 0.32;
-      rig.group.position.y = hop;
+      rig.group.position.y = (rig.baseY || 0) + hop;
       rig.group.rotation.y += (0 - rig.group.rotation.y) * Math.min(1, dt * 5);
       if (rig.parts.head) rig.parts.head.rotation.z = Math.sin(anim.t * 9) * 0.18;
       if (rig.parts.tail) rig.parts.tail.rotation.y = Math.sin(anim.t * 10) * 0.6;
@@ -852,7 +1388,7 @@ window.Scene = (function () {
         if (rig.charmTier !== tier) {
           rig.charmTier = tier;
           const col = tier === 'red' ? 0xef4b64 : (tier === 'yellow' ? 0xf5b731 : 0xa9a9b0);
-          rig.charmHeart.traverse(o => { if (o.material && o.material.color) o.material.color.setHex(col); });
+          rig.charmHeart.traverse(o => { if (o.material && o.material.color && !(o.material.userData && o.material.userData.keep)) o.material.color.setHex(col); });
         }
         rig.charmHeart.visible = true;
         const k = Math.min(1, rig.charm / 2.4);
@@ -861,7 +1397,7 @@ window.Scene = (function () {
         rig.charmHeart.rotation.y += dt * 1.8;
       }
     } else {
-      if (!riding && rig.group.position.y !== 0) rig.group.position.y = 0;
+      if (!riding && rig.group.position.y !== (rig.baseY || 0)) rig.group.position.y = rig.baseY || 0;
       if (rig.parts.head) rig.parts.head.rotation.z = (rig.parts.head.rotation.z || 0) * (1 - Math.min(1, dt * 4));
       if (rig.charmHeart) rig.charmHeart.visible = false;
     }
@@ -869,34 +1405,98 @@ window.Scene = (function () {
     // 移动
     let dirX = 0, dirZ = 0, moving = false;
     if (riding) {
+      /* 骑马绕南边散养大草地转圈（中心约 0,27，不再是老牧场中心） */
       anim.rideAngle += dt * 0.55;
-      const rx = Math.sin(anim.rideAngle) * 9.5;
-      const rz = Math.cos(anim.rideAngle) * 3.2;
+      const rx = Math.sin(anim.rideAngle) * 10;
+      const rz = 27 + Math.cos(anim.rideAngle) * 3.2;
       rig.group.position.x += (rx - rig.group.position.x) * Math.min(1, dt * 3);
       rig.group.position.z += (rz - rig.group.position.z) * Math.min(1, dt * 3);
       rig.group.position.y = Math.abs(Math.sin(anim.rideAngle * 8)) * 0.22;
-      rig.group.rotation.y = Math.atan2(Math.cos(anim.rideAngle) * 9.5, -Math.sin(anim.rideAngle) * 3.2) + Math.PI / 2;
+      rig.group.rotation.y = Math.atan2(Math.cos(anim.rideAngle) * 10, -Math.sin(anim.rideAngle) * 3.2) + Math.PI / 2;
       moving = true;
       rig.speedFactor = 2.6;
     } else if (rig.charm > 0) {
       // 撒娇期间原地站定，互动动作更清晰
       moving = false;
-    } else {
-      rig.wander.timer -= dt;
-      if (rig.wander.timer <= 0) {
-        rig.wander.timer = 1.6 + Math.random() * 3.4;
-        rig.wander.tx = P.minX + 1.5 + Math.random() * (P.maxX - P.minX - 3);
-        rig.wander.tz = P.minZ + 1.5 + Math.random() * (P.maxZ - P.minZ - 3);
+    } else if (rig.trip) {
+      /* 赶路：沿路径点走（放牧出栏 / 收回 / 上屋顶），走到点就换下一个点 */
+      const pts = rig.trip.pts;
+      const wp = pts[rig.trip.leg];
+      if (wp) {
+        const dx = wp.x - rig.group.position.x, dz = wp.z - rig.group.position.z;
+        const targetY = wp.y === undefined ? (rig.baseY || 0) : wp.y;
+        const dy = targetY - rig.group.position.y;
+        const dist = Math.sqrt(dx * dx + dz * dz + dy * dy);
+        const step = (rig.trip.speed || 2.6) * dt;
+        if (dist < Math.max(0.4, step)) {
+          rig.group.position.x = wp.x; rig.group.position.z = wp.z;
+          if (wp.y !== undefined) { rig.group.position.y = wp.y; rig.baseY = wp.y; }
+          rig.trip.leg++;
+          if (rig.trip.leg >= pts.length) {
+            const done = rig.trip;
+            rig.trip = null;
+            if (done.kind === 'graze') { rig.zone = 'meadow'; }
+            else if (done.kind === 'return') { rig.zone = 'pen'; rig.baseY = 0; }
+            else if (done.kind === 'roof') { rig.roof = { y: wp.y, timer: 6 + Math.random() * 4 }; }
+            else if (done.kind === 'roofback') { rig.roof = null; rig.baseY = 0; }
+          }
+        } else {
+          rig.group.position.x += (dx / dist) * step;
+          rig.group.position.z += (dz / dist) * step;
+          rig.group.position.y += (dy / dist) * step;
+          rig.group.rotation.y = Math.atan2(dx, dz);
+          moving = true;
+        }
+      } else { rig.trip = null; }
+    } else if (rig.roof) {
+      /* 在屋顶待着，待够了跳下来回地面 */
+      rig.roof.timer -= dt;
+      if (rig.roof.timer <= 0) {
+        rig.trip = { kind: 'roofback', pts: [{ x: rig.roofBackX, z: rig.roofBackZ, y: 0 }], leg: 0, speed: 2.6 };
       }
-      dirX = rig.wander.tx - rig.group.position.x;
-      dirZ = rig.wander.tz - rig.group.position.z;
-      const dist = Math.sqrt(dirX * dirX + dirZ * dirZ);
-      if (dist > 0.35) {
-        const step = (rig.state === 'grazing' ? 0.35 : 0.7) * (rig.speedFactor || 1) * dt * (rig.idle ? 1 : 1);
-        rig.group.position.x += (dirX / dist) * step;
-        rig.group.position.z += (dirZ / dist) * step;
-        rig.group.rotation.y = Math.atan2(dirX, dirZ);
-        moving = true;
+      moving = false;
+    } else if (rig.eating > 0) {
+      // 吃东西时原地低头，不走动
+      moving = false;
+    } else {
+      /* 放牧触发：放牧中 + 还在栏里 → 从北门走出去；收回 + 还在草地 → 走回栏里 */
+      if (rig.grazing && rig.zone === 'pen' && rig.penKey && GRAZE_ROUTES[rig.penKey]) {
+        const pts = GRAZE_ROUTES[rig.penKey].map(p => ({ x: p[0], z: p[1] }));
+        const M = LAYOUT.meadow;
+        pts.push({ x: M.minX + 1.5 + Math.random() * (M.maxX - M.minX - 3), z: M.minZ + 1 + Math.random() * (M.maxZ - M.minZ - 2) });
+        rig.trip = { kind: 'graze', pts: pts, leg: 0, speed: 2.6 };
+        rig.eating = 0;
+      } else if (!rig.grazing && rig.zone === 'meadow' && rig.penKey) {
+        const R = penByKey(rig.penKey);
+        const pts = GRAZE_ROUTES[rig.penKey].slice().reverse().map(p => ({ x: p[0], z: p[1] }));
+        pts.push({ x: R.cx, z: R.cz });
+        rig.trip = { kind: 'return', pts: pts, leg: 0, speed: 2.6 };
+        rig.eating = 0;
+      } else if (rig.type === 'cat' && !rig.roof && !rig.trip && Math.random() < dt * 0.02) {
+        /* 猫上屋顶：先走到屋前，再跳上屋顶待一会儿 */
+        const spot = ROOF_SPOTS[Math.floor(Math.random() * ROOF_SPOTS.length)];
+        rig.roofBackX = spot.gx; rig.roofBackZ = spot.gz;
+        rig.trip = { kind: 'roof', pts: [{ x: spot.gx, z: spot.gz }, { x: spot.x, z: spot.z, y: spot.y }], leg: 0, speed: 2.6 };
+        rig.eating = 0;
+      }
+      if (!rig.trip) {
+        rig.wander.timer -= dt;
+        if (rig.wander.timer <= 0) {
+          rig.wander.timer = 1.6 + Math.random() * 3.4;
+          const R = roamRectFor(rig);
+          rig.wander.tx = R.minX + Math.random() * (R.maxX - R.minX);
+          rig.wander.tz = R.minZ + Math.random() * (R.maxZ - R.minZ);
+        }
+        dirX = rig.wander.tx - rig.group.position.x;
+        dirZ = rig.wander.tz - rig.group.position.z;
+        const dist = Math.sqrt(dirX * dirX + dirZ * dirZ);
+        if (dist > 0.35) {
+          const step = (rig.grazing ? 0.45 : 0.7) * (rig.walkSpeed || 1) * dt;
+          rig.group.position.x += (dirX / dist) * step;
+          rig.group.position.z += (dirZ / dist) * step;
+          rig.group.rotation.y = Math.atan2(dirX, dirZ);
+          moving = true;
+        }
       }
       rig.speedFactor = undefined;
     }
@@ -908,29 +1508,47 @@ window.Scene = (function () {
     legs.forEach((leg, i) => {
       leg.rotation.x = Math.sin(rig.walkPhase + (i % 2) * Math.PI) * (moving ? (rig.type === 'dog' ? 0.5 : 0.35) : 0);
     });
-    rig.group.position.y = (rig.group.position.y || 0) * 0.9 + (moving ? Math.abs(Math.sin(rig.walkPhase)) * 0.05 : 0);
+    /* 走路颠簸（赶路时高度由路径点控制，不参与衰减） */
+    if (!rig.trip) rig.group.position.y = ((rig.group.position.y || 0) - (rig.baseY || 0)) * 0.9 + (rig.baseY || 0) + (moving ? Math.abs(Math.sin(rig.walkPhase)) * 0.05 : 0);
 
-    // 生病标记：头顶小气泡
+    // 生病标记：头顶裂开的爱心 💔 + 脸上三条黑色下垂线（没精神），一眼可辨；病好即拆
     if (rig.sickFlag === undefined || rig.sickFlag !== rig.sick) {
       rig.sickFlag = rig.sick;
       if (rig.sick && !rig.sickMesh) {
-        const s = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), new THREE.MeshBasicMaterial({ color: 0x7ad06d }));
-        s.position.set(0, 2.6, 0);
-        rig.group.add(s);
-        rig.sickMesh = s;
+        const grp = new THREE.Group();
+        grp.position.set(0, (rig.charmHeartY || 2.5) + 0.3, 0);
+        grp.add(emojiSprite('💔', Math.max(0.55, (rig.baseScale || 1) * 1.1)));
+        rig.group.add(grp);
+        rig.sickMesh = grp;
+        // 脸上下垂线：挂在头上，随头一起动
+        rig.sickLines = [];
+        if (rig.parts.head) {
+          const lineMat = new THREE.MeshBasicMaterial({ color: 0x2b2320 });
+          [[-0.28, 0.3, 0.4, 0.5], [0, 0.34, 0.44, 0], [0.28, 0.3, 0.4, -0.5]].forEach(d => {
+            const ln = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.24, 0.02), lineMat);
+            ln.position.set(d[0], d[1], d[2]);
+            ln.rotation.z = d[3];
+            rig.parts.head.add(ln);
+            rig.sickLines.push(ln);
+          });
+        }
       } else if (!rig.sick && rig.sickMesh) {
         rig.group.remove(rig.sickMesh);
         rig.sickMesh = null;
+        if (rig.sickLines) {
+          rig.sickLines.forEach(ln => { if (ln.parent) ln.parent.remove(ln); });
+          rig.sickLines = null;
+        }
       }
     }
-    if (rig.sickMesh) rig.sickMesh.position.y = 2.6 + Math.sin(anim.t * 3) * 0.1;
+    if (rig.sickMesh) rig.sickMesh.position.y = (rig.charmHeartY || 2.5) + 0.3 + Math.sin(anim.t * 3) * 0.1;
 
     // 产物就绪光环
     if (rig.produceFlag !== rig.produce) {
       rig.produceFlag = rig.produce;
       if (rig.produce && !rig.produceMesh) {
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.07, 8, 18), new THREE.MeshBasicMaterial({ color: 0xffe066 }));
-        ring.position.set(0, 2.3, 0);
+        ring.position.set(0, rig.charmHeartY || 2.5, 0);
         ring.rotation.x = Math.PI / 2;
         rig.group.add(ring);
         rig.produceMesh = ring;
@@ -941,7 +1559,7 @@ window.Scene = (function () {
     }
     if (rig.produceMesh) {
       rig.produceMesh.rotation.z += dt * 2;
-      rig.produceMesh.position.y = 2.3 + Math.sin(anim.t * 4) * 0.08;
+      rig.produceMesh.position.y = (rig.charmHeartY || 2.5) + Math.sin(anim.t * 4) * 0.08;
     }
   }
 
@@ -1237,9 +1855,29 @@ window.Scene = (function () {
     const stage = Math.max(0, Math.min(3, stageIdx | 0));
     ctx.clearRect(0, 0, S, S);
 
-    if (stage >= 3) {   // 结果期：直接复用成熟果实造型，去掉白底盘
+    if (stage >= 3) {   // 结果期：立起来的整株植物（茎 + 叶 + 顶端果实/花），不是漂浮的果子
       ctx.save();
-      ctx.translate(S * 0.5, S * 0.52); ctx.scale(0.86, 0.86); ctx.translate(-S * 0.5, -S * 0.5);
+      ctx.translate(S * 0.5, S * 0.88);
+      ctx.lineWidth = S * 0.03;
+      ctx.strokeStyle = 'rgba(72,54,40,0.5)';
+      var sh = 0.6 * S;
+      ctx.fillStyle = '#5f9f42';
+      ctx.fillRect(-S * 0.035, -sh, S * 0.07, sh);
+      for (var lk = 0; lk < 4; lk++) {
+        var ld = (lk % 2 === 0) ? -1 : 1;
+        var ll = 0.45 + Math.floor(lk / 2) * 0.3;
+        ctx.save();
+        ctx.translate(0, -sh * ll);
+        ctx.rotate(ld * 0.55);
+        ctx.fillStyle = L;
+        ctx.beginPath();
+        ctx.ellipse(ld * S * 0.13, 0, S * 0.14, S * 0.07, 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+      ctx.translate(0, -sh);
+      ctx.scale(0.92, 0.92);
+      ctx.translate(-S * 0.5, -S * 0.5);
       paintCropIcon(ctx, cropId, S, true);
       ctx.restore();
       return;
@@ -1250,13 +1888,13 @@ window.Scene = (function () {
     ctx.lineWidth = S * 0.03;
     ctx.strokeStyle = 'rgba(72,54,40,0.5)';
 
-    const stemH = [0.26, 0.5, 0.6][stage] * S;
+    const stemH = [0.3, 0.58, 0.68][stage] * S;
     const stemW = (stage === 0 ? 0.05 : 0.07) * S;
     ctx.fillStyle = stage === 0 ? '#a9dd7c' : '#5f9f42';
     ctx.fillRect(-stemW / 2, -stemH, stemW, stemH);
 
     const leafCount = [2, 4, 5][stage];
-    const leafScale = [0.15, 0.21, 0.23][stage];
+    const leafScale = [0.17, 0.23, 0.25][stage];
     for (let k = 0; k < leafCount; k++) {
       const dir = (k % 2 === 0) ? -1 : 1;
       const lvl = Math.min(1, 0.42 + Math.floor(k / 2) * 0.28);
@@ -1307,7 +1945,7 @@ window.Scene = (function () {
     if (cropPlantCanvasCache[key]) return cropPlantCanvasCache[key];
     let url = '';
     try {
-      const S = 96;
+      const S = 128;
       const cv = document.createElement('canvas');
       cv.width = S; cv.height = S;
       const ctx = cv.getContext('2d');
@@ -1390,9 +2028,13 @@ window.Scene = (function () {
       if (!slot) return;
       slot.grass.visible = !p.plowed;
       slot.soil.visible = !!p.plowed;
+      if (slot.weedGroup) slot.weedGroup.visible = !p.plowed;
+      const isDry = p.plowed && !p.cropType && (p.waterLevel || 0) === 0;
+      if (slot.crackGroup) slot.crackGroup.visible = !!isDry;
       const lv = p.plowed ? Math.max(0, Math.min(3, p.fertilizerLevel || 0)) : 0;
       if (lv > 0) slot.soil.material = toon(SOIL_COLOR.fert);
       else if (p.waterLevel > 0) slot.soil.material = toon(SOIL_COLOR.wet);
+      else if (isDry) slot.soil.material = toon(SOIL_COLOR.dry);
       else slot.soil.material = toon(SOIL_COLOR.normal);
 
       // 施肥痕迹：黑色芝麻状小点，施肥等级越高越密（等级 1/2/3 → 15/21/27 点）
@@ -1410,6 +2052,9 @@ window.Scene = (function () {
         clearCropModel(cm);
         if (p.cropType) {
           cm.model = buildCropModel(p.cropType, stageIdx);
+          // 作物立起来、有高度感（农田 v9）：向日葵最高、番茄次之，其余统一拔高
+          const hScale = p.cropType === 'sunflower' ? 1.5 : (p.cropType === 'tomato' ? 1.35 : 1.25);
+          cm.model.scale.setScalar(hScale);
           cm.group.add(cm.model);
         }
         cm.built = key;
@@ -1431,16 +2076,28 @@ window.Scene = (function () {
 
   /* ======================= 天气系统 ======================= */
 
+  /* 天气风力（摆动幅度 / 云速共用，applyTheme 里按天气设定） */
+  let windSway = 0.02, cloudSpeed = 0.012;
+
   function buildWeather(weather, season) {
     if (weatherSys) { scene.remove(weatherSys.points); weatherSys = null; }
     if (!scene) return;
     const theme = D.seasonTheme[season];
     const isSnow = weather === 5 || (season === 3 && weather === 1);
-    let kind = null, color = 0xa8d8ff, size = 0.16, count = 700, speed = 14;
-    if (weather === 2 || weather === 4) { kind = 'rain'; count = 1100; size = 0.19; speed = 26; color = 0x9dc8ff; }
-    else if (weather === 1) { kind = isSnow ? 'snow' : 'rain'; count = isSnow ? 500 : 800; size = isSnow ? 0.22 : 0.16; speed = isSnow ? 5 : 16; }
-    else if (weather === 5) { kind = 'snow'; count = 900; size = 0.24; speed = 6; }
-    else { kind = theme.decor; count = kind === 'petal' ? 160 : kind === 'leaf' ? 140 : 80; size = kind === 'leaf' ? 0.3 : 0.2; speed = 3; color = kind === 'petal' ? 0xffc0d4 : kind === 'leaf' ? 0xe08a3c : 0xffffff; }
+    let kind = null, color = 0xa8d8ff, size = 0.16, count = 700, speed = 14, wind = 0;
+    if (weather === 2) { kind = 'rain'; count = 1500; size = 0.22; speed = 30; color = 0x9dc8ff; wind = 6; }   // 暴风雨：更密更快
+    else if (weather === 4) { kind = 'rain'; count = 1600; size = 0.22; speed = 34; color = 0x8fb8e8; wind = 16; } // 台风：雨斜着打
+    else if (weather === 1) { kind = isSnow ? 'snow' : 'rain'; count = isSnow ? 500 : 800; size = isSnow ? 0.22 : 0.16; speed = isSnow ? 5 : 16; wind = isSnow ? 1 : 2.5; }
+    else if (weather === 5) { kind = 'snow'; count = 1400; size = 0.3; speed = 7; color = 0xffffff; wind = 5; } // 暴雪：大而密
+    else if (weather === 3) { kind = 'dust'; count = 60; size = 0.3; speed = 1.5; color = 0xfff2c0; wind = 1; }   // 干旱：漂浮尘粒
+    else {
+      kind = theme.decor;
+      // 四季氛围：春花瓣 / 夏萤火 / 秋落叶 / 冬飘雪（数量按季节调足）
+      count = kind === 'petal' ? 200 : kind === 'leaf' ? 180 : kind === 'snow' ? 220 : 110;
+      size = kind === 'leaf' ? 0.3 : kind === 'snow' ? 0.26 : 0.2;
+      speed = kind === 'snow' ? 4 : 3;
+      color = kind === 'petal' ? 0xffc0d4 : kind === 'leaf' ? 0xe08a3c : kind === 'bug' ? 0xffe98a : 0xffffff;
+    }
 
     const geo = new THREE.BufferGeometry();
     const pos = new Float32Array(count * 3);
@@ -1452,24 +2109,28 @@ window.Scene = (function () {
       vel[i] = 0.6 + Math.random() * 0.8;
     }
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const mat = new THREE.PointsMaterial({ color: color, size: size, transparent: true, opacity: kind === 'rain' || kind === 'snow' ? 0.85 : 0.9, depthWrite: false, sizeAttenuation: true });
+    const mat = new THREE.PointsMaterial({ color: color, size: size, transparent: true, opacity: kind === 'rain' || kind === 'snow' ? 0.85 : (kind === 'dust' ? 0.35 : 0.9), depthWrite: false, sizeAttenuation: true });
     const points = new THREE.Points(geo, mat);
     scene.add(points);
-    weatherSys = { points: points, kind: kind, count: count, speed: speed, vel: vel };
+    weatherSys = { points: points, kind: kind, count: count, speed: speed, vel: vel, wind: wind, weather: weather, flashTimer: 3 + Math.random() * 5 };
   }
 
   function updateWeather(dt) {
     if (!weatherSys) return;
     const arr = weatherSys.points.geometry.attributes.position.array;
     const isRain = weatherSys.kind === 'rain';
+    const wind = weatherSys.wind || 0;
     for (let i = 0; i < weatherSys.count; i++) {
       const i3 = i * 3;
       arr[i3 + 1] -= weatherSys.speed * weatherSys.vel[i] * dt;
       if (weatherSys.kind === 'petal' || weatherSys.kind === 'leaf' || weatherSys.kind === 'bug') {
         arr[i3] += Math.sin(anim.t * 1.2 + i) * dt * 1.8;
         arr[i3 + 2] += Math.cos(anim.t * 0.9 + i) * dt * 1.4;
+      } else if (weatherSys.kind === 'snow') {
+        arr[i3] += (Math.sin(anim.t * 0.8 + i) * 0.8 + wind) * dt;
+        arr[i3 + 2] += Math.cos(anim.t * 0.6 + i) * dt * 0.5;
       } else {
-        arr[i3] += (isRain ? 2.5 : 0.4) * dt;
+        arr[i3] += wind * dt;   // 雨斜着打：风越大雨丝越斜（台风最斜）
       }
       if (arr[i3 + 1] < 0) {
         arr[i3 + 1] = 24 + Math.random() * 4;
@@ -1480,11 +2141,160 @@ window.Scene = (function () {
     weatherSys.points.geometry.attributes.position.needsUpdate = true;
   }
 
+  /* ======================= 天气覆盖层：屏幕雨滴 / 斜阳光（2D canvas 盖在 3D 画布上，pointer-events:none，不挡点击） ======================= */
+
+  let fxCanvas = null, fxCtx = null, fxW = 0, fxH = 0;
+  let fxDrops = [], fxFlakes = [], fxFrost = null, fxSpawnAcc = 0;
+
+  function initWeatherFX() {
+    fxCanvas = document.getElementById('weather-fx');
+    if (!fxCanvas) return;
+    fxCtx = fxCanvas.getContext('2d');
+    resizeWeatherFX();
+  }
+
+  function resizeWeatherFX() {
+    if (!fxCanvas || !fxCtx || !container) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    fxW = container.clientWidth || 720;
+    fxH = container.clientHeight || 460;
+    fxCanvas.width = Math.round(fxW * dpr);
+    fxCanvas.height = Math.round(fxH * dpr);
+    fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    fxFrost = null;
+  }
+
+  /* 斜射阳光：右上斜照进镜头的光束 + 镜头光晕（晴天弱、干旱强） */
+  function fxSunbeams(strength) {
+    const ctx = fxCtx;
+    ctx.save();
+    ctx.translate(fxW * 0.82, -fxH * 0.08);
+    ctx.rotate(0.5);
+    for (let i = -1; i <= 1; i++) {
+      const w = 60 + Math.abs(i) * 50;
+      const g = ctx.createLinearGradient(0, 0, 0, fxH * 1.3);
+      g.addColorStop(0, 'rgba(255,236,170,' + (0.18 * strength) + ')');
+      g.addColorStop(1, 'rgba(255,236,170,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(i * 130 - w / 2, 0, w, fxH * 1.3);
+    }
+    ctx.restore();
+    // 镜头光晕：右上角暖光团
+    const glow = ctx.createRadialGradient(fxW * 0.86, fxH * 0.06, 0, fxW * 0.86, fxH * 0.06, fxW * 0.34);
+    glow.addColorStop(0, 'rgba(255,232,150,' + (0.28 * strength) + ')');
+    glow.addColorStop(1, 'rgba(255,232,150,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, fxW, fxH);
+    if (strength > 1.2) {   // 干旱：整屏偏白刺眼
+      ctx.fillStyle = 'rgba(255,246,210,0.04)';
+      ctx.fillRect(0, 0, fxW, fxH);
+    }
+  }
+
+  /* 屏幕雨滴：先挂在“镜头”上慢慢长大，再往下流、拖出水痕、消失；新的不断出现 */
+  function fxDroplets(dt, weather) {
+    const ctx = fxCtx;
+    const rate = weather === 4 ? 46 : weather === 2 ? 38 : 13;   // 台风 / 暴风雨更密
+    const slant = weather === 4 ? -0.45 : weather === 2 ? -0.18 : 0;  // 台风雨滴斜着流
+    fxSpawnAcc += dt * rate;
+    while (fxSpawnAcc >= 1 && fxDrops.length < 120) {
+      fxSpawnAcc -= 1;
+      fxDrops.push({
+        x: Math.random() * fxW, y: Math.random() * fxH * 0.85,
+        r: 1.2 + Math.random() * 1.6, maxR: 2.2 + Math.random() * 3.4,
+        wait: 0.4 + Math.random() * 2.2, vy: 0, trail: []
+      });
+    }
+    fxDrops = fxDrops.filter(d => {
+      if (d.wait > 0) {
+        d.wait -= dt;
+        if (d.r < d.maxR) d.r += dt * 0.9;
+      } else {
+        d.vy = Math.min(300, d.vy + 520 * dt);
+        d.y += d.vy * dt;
+        d.x += d.vy * slant * dt;
+        d.trail.push({ x: d.x, y: d.y });
+        if (d.trail.length > 14) d.trail.shift();
+        if (d.y - d.r > fxH + 10 || d.x < -20) return false;
+      }
+      return true;
+    });
+    ctx.lineCap = 'round';
+    fxDrops.forEach(d => {
+      if (d.trail.length > 2) {
+        ctx.strokeStyle = 'rgba(220,238,255,0.35)';
+        ctx.lineWidth = Math.max(1, d.r * 0.45);
+        ctx.beginPath();
+        ctx.moveTo(d.trail[0].x, d.trail[0].y);
+        d.trail.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.stroke();
+      }
+      const g = ctx.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.3, d.r * 0.1, d.x, d.y, d.r);
+      g.addColorStop(0, 'rgba(255,255,255,0.9)');
+      g.addColorStop(0.55, 'rgba(210,232,255,0.45)');
+      g.addColorStop(1, 'rgba(210,232,255,0.08)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  /* 暴雪：屏幕边缘结霜 + 镜头上的雪花慢慢飘 */
+  function fxBlizzard(dt) {
+    const ctx = fxCtx;
+    if (!fxFrost) {
+      fxFrost = [];
+      for (let i = 0; i < 46; i++) {
+        const edge = i % 4;
+        let x, y;
+        if (edge === 0) { x = Math.random() * fxW; y = Math.random() * 26; }
+        else if (edge === 1) { x = Math.random() * fxW; y = fxH - Math.random() * 26; }
+        else if (edge === 2) { x = Math.random() * 22; y = Math.random() * fxH; }
+        else { x = fxW - Math.random() * 22; y = Math.random() * fxH; }
+        fxFrost.push({ x: x, y: y, r: 4 + Math.random() * 14 });
+      }
+      fxFlakes = [];
+      for (let i = 0; i < 26; i++) fxFlakes.push({ x: Math.random() * fxW, y: Math.random() * fxH, r: 1.5 + Math.random() * 2.5, ph: Math.random() * 6 });
+    }
+    fxFrost.forEach(f => {
+      const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r);
+      g.addColorStop(0, 'rgba(255,255,255,0.5)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fill();
+    });
+    fxFlakes.forEach(f => {
+      f.y += 14 * dt;
+      f.x += Math.sin(anim.t * 0.9 + f.ph) * 12 * dt;
+      if (f.y > fxH + 4) { f.y = -4; f.x = Math.random() * fxW; }
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  /* 每帧绘制天气覆盖层（只在牧场视图显示，画在 #scene-wrap 内，不盖 HUD / 底栏） */
+  function drawWeatherFX(dt) {
+    if (!fxCtx || mode !== '3d') return;
+    fxCtx.clearRect(0, 0, fxW, fxH);
+    if (document.body.dataset.view !== 'pasture') { fxDrops = []; return; }
+    const w = currentState ? currentState.weather : 0;
+    if (w === 0) fxSunbeams(1);
+    else if (w === 3) fxSunbeams(1.7);
+    else if (w === 1 || w === 2 || w === 4) fxDroplets(dt, w);
+    else if (w === 5) fxBlizzard(dt);
+    // 闪电白闪（与 3D 灯光闪烁同步）
+    if (anim.flash > 0) {
+      fxCtx.fillStyle = 'rgba(255,255,255,' + (anim.flash / 0.16 * 0.4).toFixed(3) + ')';
+      fxCtx.fillRect(0, 0, fxW, fxH);
+    }
+  }
+
   /* ======================= 主题 ======================= */
 
   function applyTheme(season, weather, immediate) {
     const theme = D.seasonTheme[season];
-    if (scene) scene.fog = new THREE.Fog(theme.fog, 34, 78);
+    if (scene) scene.fog = new THREE.Fog(theme.fog, 60, 150);
     if (renderer) renderer.setClearColor(theme.sky, 1);
     if (groups.sky) groups.sky.material.color.setHex(theme.sky);
     if (groups.ground) groups.ground.material.color.setHex(theme.ground);
@@ -1505,15 +2315,43 @@ window.Scene = (function () {
     }
     if (groups.water) groups.water.material.color.setHex(season === 3 ? 0x9fd8f0 : 0x63c2ea);
 
-    // 雨天压暗
-    const dim = (weather === 2 || weather === 4 || weather === 5) ? 0.55 : weather === 1 ? 0.78 : 1;
+    // 各天气光影（只改视觉，不动玩法）：晴暖亮 / 雨湿暗 / 暴风雨更暗+闪电 / 干旱刺眼发白 / 台风最暗 / 暴雪灰白
+    const dim = weather === 4 ? 0.42 : weather === 2 ? 0.55 : weather === 5 ? 0.6 : weather === 1 ? 0.8 : weather === 3 ? 1.15 : 1;
+    const skyHex = weather === 1 ? 0xa8bfd4 : weather === 2 ? 0x8fa5b8 : weather === 4 ? 0x7e8fa0
+      : weather === 5 ? 0xe8eef2 : weather === 3 ? 0xfff6da : theme.sky;
+    if (groups.sky) groups.sky.material.color.setHex(skyHex);
+    if (renderer) renderer.setClearColor(skyHex, 1);
+    /* 雾距按天气：晴 / 干旱要看得远（v12 开阔远景，远山可见），雨雪天才收近 */
+    const fogNear = weather === 4 ? 22 : weather === 2 ? 26 : weather === 5 ? 28 : weather === 1 ? 40 : weather === 3 ? 55 : 60;
+    const fogFar = weather === 4 ? 58 : weather === 2 ? 66 : weather === 5 ? 70 : weather === 1 ? 100 : weather === 3 ? 140 : 150;
+    if (scene) scene.fog = new THREE.Fog(skyHex, fogNear, fogFar);
+    if (renderer) renderer.toneMappingExposure = weather === 3 ? 1.25 : weather === 4 ? 0.85 : 1.0;
     if (groups.light) {
-      groups.light.intensity = 0.9 * dim;
-      groups.hemi.intensity = 0.85 * (dim + 0.15);
+      groups.light.intensity = 1.12 * dim;
+      groups.light.color.setHex(weather === 3 ? 0xfff6da : weather === 4 ? 0xc8d4e0 : 0xfff3d8);
+      groups.hemi.intensity = 0.72 * (dim + 0.15);
     }
-    if (!immediate) groups._flashTarget = dim;
-    // 冬季地面覆雪
-    if (groups.ground && season === 3) groups.ground.material.color.setHex(0xeaf3fb);
+    groups._dim = dim;
+    groups._skyHex = skyHex;
+    // 风力：摆动幅度与云速（台风最大，干旱最小）
+    windSway = weather === 4 ? 0.16 : weather === 2 ? 0.09 : weather === 1 ? 0.05 : weather === 5 ? 0.05 : weather === 3 ? 0.015 : 0.02;
+    cloudSpeed = weather === 4 ? 0.09 : weather === 2 ? 0.05 : weather === 1 ? 0.02 : weather === 5 ? 0.015 : weather === 3 ? 0.008 : 0.012;
+    // 太阳：只在晴 / 干旱出现，干旱更大更白更刺眼
+    if (groups.sun) {
+      groups.sun.visible = (weather === 0 || weather === 3);
+      groups.sun.material.color.setHex(weather === 3 ? 0xfffbe8 : 0xffe98a);
+      groups.sun.scale.setScalar(weather === 3 ? 1.5 : 1);
+    }
+    // 地面：雨湿润偏深、干旱偏干黄、暴雪/冬季覆雪
+    if (groups.ground) {
+      if (weather === 5 || season === 3) groups.ground.material.color.setHex(0xeaf3fb);
+      else if (weather === 3) groups.ground.material.color.setHex(0xcbb45e);
+      else if (weather === 2 || weather === 4) groups.ground.material.color.setHex(weather === 4 ? 0x5e8a48 : 0x6f9a52);
+      else if (weather === 1) groups.ground.material.color.setHex(0x7fae58);
+      else groups.ground.material.color.setHex(theme.ground);
+    }
+    // 屋顶积雪：暴雪或冬季显示
+    if (groups.snowCaps) groups.snowCaps.forEach(c => { c.visible = (weather === 5 || season === 3); });
   }
 
   /* ======================= 初始化 ======================= */
@@ -1545,14 +2383,14 @@ window.Scene = (function () {
     renderer.setSize(container.clientWidth || 720, container.clientHeight || 480, false);
     if (THREE.sRGBEncoding) renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xdcefff, 72, 150);   // 远处轻微空气雾，增强景深
     gradientMap = makeGradientMap();
-    camera = new THREE.PerspectiveCamera(38, 1, 0.1, 220);
+    camera = new THREE.PerspectiveCamera(50, 1, 0.1, 220);   // 视野 50°：新牧场栏杆更宽（32 格），38° 时栏边动物会出画，要拖镜头才找得到
     clock = new THREE.Clock();
     raycaster = new THREE.Raycaster();
 
@@ -1584,18 +2422,26 @@ window.Scene = (function () {
     scene.add(amb);
     groups.light = dir;
     groups.hemi = hemi;
+    pickables.length = 0;   // 重建前先清空旧拾取体（必须在 buildField/buildBuildings 之前，否则会清掉刚注册的地块/矿洞/出货箱点击体）
 
     buildSky();
     buildGround();
     buildPond();
     buildField();
     buildFence();
+    buildMeadow();
     buildProps();
     buildBuildings();
+    buildSquirrel();
 
-    pickables.length = 0;
     bindPointer(canvasEl);
     resize();
+    /* 容器高会随 HUD/卡片内容变化（不是窗口 resize），用 ResizeObserver 跟着调，避免相机比例与画布缓冲过期、画面被压扁 */
+    if (typeof ResizeObserver !== 'undefined' && container && !container._ro) {
+      container._ro = new ResizeObserver(function () { resize(); });
+      container._ro.observe(container);
+    }
+    initWeatherFX();   // 天气覆盖层（屏幕雨滴 / 斜阳光）
     applyTheme(state.season, state.weather, true);
     buildWeather(state.weather, state.season);
     spawnAnimals(state);
@@ -1635,6 +2481,8 @@ window.Scene = (function () {
         const ud = hits[i].object.userData;
         if (ud.pickType === 'plot' && callbacks.plot) { callbacks.plot(ud.index); return true; }
         if (ud.pickType === 'animal' && callbacks.animal) { callbacks.animal(ud.animalId); return true; }
+        if (ud.pickType === 'squirrel') { fleeSquirrel(); return true; }
+        if (ud.pickType === 'crate' && callbacks.crate) { callbacks.crate(); return true; }
         if (ud.pickType === 'mine' && callbacks.mine) { callbacks.mine(); return true; }
         if (ud.pickType === 'pasture') { return true; }
       }
@@ -1659,20 +2507,48 @@ window.Scene = (function () {
       pick(t.clientX, t.clientY);
     };
     let downX = 0, downY = 0, tracking = false;
+    let lastPX = 0, lastPY = 0, panning = false;   // 镜头拖动状态（牧场是竖长一页，拖动平移相机查看）
     if (window.PointerEvent) {
-      canvasEl.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; tracking = true; });
+      canvasEl.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; lastPX = e.clientX; lastPY = e.clientY; panning = false; tracking = true; });
+      canvasEl.addEventListener('pointermove', e => {
+        if (!tracking) return;
+        if (!panning && Math.hypot(e.clientX - downX, e.clientY - downY) > 12) panning = true;
+        if (panning) {
+          /* 内容跟手走：往下拖看到更南边，往右拖看到更西边；x ±8，z -30..32（放牧空地到池塘） */
+          camPan.x = Math.max(-8, Math.min(8, camPan.x - (e.clientX - lastPX) * 0.045));
+          camPan.z = Math.max(-30, Math.min(32, camPan.z + (e.clientY - lastPY) * 0.045));
+        }
+        lastPX = e.clientX; lastPY = e.clientY;
+      });
       canvasEl.addEventListener('pointerup', e => {
         if (!tracking) return;
         tracking = false;
+        const wasPan = panning; panning = false;
+        if (wasPan) return;   // 拖动过就不算点击
         if (Math.abs(e.clientX - downX) > 16 || Math.abs(e.clientY - downY) > 16) return;   // 拖动 / 滑动不算点击
         pick(e.clientX, e.clientY);
       });
     } else {
       canvasEl.addEventListener('touchstart', e => {
         const t = e.changedTouches[0];
-        if (t) { downX = t.clientX; downY = t.clientY; tracking = true; }
+        if (t) { downX = t.clientX; downY = t.clientY; lastPX = t.clientX; lastPY = t.clientY; panning = false; tracking = true; }
       }, { passive: true });
-      canvasEl.addEventListener('touchend', pickTouch);
+      canvasEl.addEventListener('touchmove', e => {
+        const t = e.changedTouches[0];
+        if (!t || !tracking) return;
+        if (!panning && Math.hypot(t.clientX - downX, t.clientY - downY) > 12) panning = true;
+        if (panning) {
+          e.preventDefault();   // 拖动镜头时不滚动页面
+          camPan.x = Math.max(-8, Math.min(8, camPan.x - (t.clientX - lastPX) * 0.045));
+          camPan.z = Math.max(-30, Math.min(32, camPan.z + (t.clientY - lastPY) * 0.045));
+        }
+        lastPX = t.clientX; lastPY = t.clientY;
+      }, { passive: false });
+      canvasEl.addEventListener('touchend', e => {
+        const wasPan = panning; panning = false; tracking = false;
+        if (wasPan) return;   // 拖动过就不算点击
+        pickTouch(e);
+      });
     }
   }
 
@@ -1697,32 +2573,49 @@ window.Scene = (function () {
     anim.t += dt;
 
     if (mode === '3d') {
-      if (groups.clouds) groups.clouds.rotation.y += dt * 0.012;
+      if (groups.clouds) groups.clouds.rotation.y += dt * cloudSpeed;
+      if (groups.sun) groups.sun.lookAt(camera.position);
       if (groups.water) groups.water.material.opacity = 0.86 + Math.sin(anim.t * 1.6) * 0.06;
-      if (groups.foliage) groups.foliage.forEach(f => { f.rotation.z = Math.sin(anim.t * 0.9 + f.userData.phase) * 0.02; });
+      if (groups.foliage) groups.foliage.forEach(f => { f.rotation.z = Math.sin(anim.t * 0.9 + f.userData.phase) * windSway; });
       if (currentState) animalRigs.forEach(r => updateAnimal(r, dt, currentState));
       if (dogRig && currentState) updateAnimal(dogRig, dt, currentState);
       if (horseRig && currentState) updateAnimal(horseRig, dt, currentState);
       if (eagleRig && currentState) updatePets(eagleRig, dt);
       if (cormorantRig && currentState) updatePets(cormorantRig, dt);
-      // 作物随风轻摆；成熟地块的专属图标上下浮动
+      if (squirrelRig) updateSquirrel(dt);
+      // 作物随风轻摆（台风摆幅最大）；成熟地块的专属图标上下浮动
       cropMeshes.forEach((cm, i) => {
-        if (cm.model) cm.model.rotation.z = Math.sin(anim.t * 1.5 + i * 0.7) * (cm.ripe ? 0.02 : 0.045);
+        if (cm.model) cm.model.rotation.z = Math.sin(anim.t * 1.5 + i * 0.7) * (cm.ripe ? windSway * 0.9 : windSway * 2);
       });
       plotMeshes.forEach((slot, i) => {
         if (slot.iconSprite.visible) slot.iconSprite.position.y = 1.0 + Math.sin(anim.t * 2 + i * 0.8) * 0.06;
       });
       updateWeather(dt);
+      // 暴风雨闪电：随机 3~11 秒一次，天空短暂变亮（3D 灯光 + 覆盖层白闪同步）
+      if (weatherSys && weatherSys.weather === 2) {
+        weatherSys.flashTimer -= dt;
+        if (weatherSys.flashTimer <= 0) { weatherSys.flashTimer = 3 + Math.random() * 8; anim.flash = 0.16; }
+      }
+      if (anim.flash > 0) {
+        anim.flash -= dt;
+        const f = Math.max(0, anim.flash / 0.16);
+        if (groups.light) groups.light.intensity = 1.12 * ((groups._dim || 0.55) + f * 2.4);
+        if (groups.sky) groups.sky.material.color.setHex(0xf4f9ff);
+      } else if (groups.sky && groups._skyHex !== undefined) {
+        groups.sky.material.color.setHex(groups._skyHex);
+        if (groups.light) groups.light.intensity = 1.12 * (groups._dim || 1);
+      }
+      drawWeatherFX(dt);
       const cam = (camMode === 'field' && !(currentState && currentState.horse.riding)) ? LAYOUT.camField : LAYOUT.camOffset;
       const look = camMode === 'field' ? [cam.lookX, cam.lookY, cam.lookZ] : [0, -2.2, 1.5];
       if (currentState && currentState.horse.riding && camera) {
         camera.position.x = LAYOUT.camOffset.x + Math.sin(anim.t * 0.4) * 1.2;
         camera.lookAt(0, -2.2, 2.5);
       } else if (camera) {
-        camera.position.x += (cam.x - camera.position.x) * dt;
+        camera.position.x += (cam.x + camPan.x - camera.position.x) * dt;
         camera.position.y += (cam.y - camera.position.y) * dt;
-        camera.position.z += (cam.z - camera.position.z) * dt;
-        camera.lookAt(look[0], look[1], look[2]);
+        camera.position.z += (cam.z + camPan.z - camera.position.z) * dt;
+        camera.lookAt(look[0] + camPan.x, look[1], look[2] + camPan.z);
       }
       if (renderer && scene && camera) renderer.render(scene, camera);
     } else {
@@ -1878,6 +2771,7 @@ window.Scene = (function () {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      resizeWeatherFX();
     } else if (mode === '2d' && fallbackCanvas) {
       const w = container ? (container.clientWidth || 720) : 720;
       const h = container ? (container.clientHeight || 460) : 460;
@@ -2031,22 +2925,46 @@ window.Scene = (function () {
       var out = [];
       if (!camera || !renderer || mode !== '3d') return out;
       var v = new THREE.Vector3();
+      var dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
       var all = animalRigs.concat(dogRig ? [dogRig] : []).concat(horseRig ? [horseRig] : []);
       all.forEach(function (r) {
         v.set(r.group.position.x, 1.0, r.group.position.z).project(camera);
         out.push({
           id: r.id || r.type,
+          wx: +r.group.position.x.toFixed(2),
+          wy: +r.group.position.y.toFixed(2),
+          wz: +r.group.position.z.toFixed(2),
           x: +((v.x + 1) / 2).toFixed(3),
           y: +((1 - v.y) / 2).toFixed(3),
           inView: v.x > -1 && v.x < 1 && v.y > -1 && v.y < 1 && v.z < 1
         });
       });
-      return out;
+      /* 松鼠调试位（与动物同口径：屏幕分数 0..1；state: tree/down/gnaw/up/flee/hide/peek） */
+      var sq = null;
+      if (squirrelRig && squirrelRig.group) {
+        v.set(squirrelRig.group.position.x, squirrelRig.group.position.y + 0.5, squirrelRig.group.position.z).project(camera);
+        sq = {
+          wx: +squirrelRig.group.position.x.toFixed(2),
+          wy: +squirrelRig.group.position.y.toFixed(2),
+          wz: +squirrelRig.group.position.z.toFixed(2),
+          x: +((v.x + 1) / 2).toFixed(3),
+          y: +((1 - v.y) / 2).toFixed(3),
+          inView: v.x > -1 && v.x < 1 && v.y > -1 && v.y < 1 && v.z < 1,
+          state: squirrelRig.state
+        };
+      }
+      return { animals: out, squirrel: sq, cam: {
+        px: +camera.position.x.toFixed(2), py: +camera.position.y.toFixed(2), pz: +camera.position.z.toFixed(2),
+        fx: +dir.x.toFixed(3), fy: +dir.y.toFixed(3), fz: +dir.z.toFixed(3),
+        aspect: +camera.aspect.toFixed(3), fov: camera.fov, near: camera.near, far: camera.far
+      } };
     },
     // 田间各生长阶段造型图标（供 UI 农田面板复用同一套 2D 造型，保证与 3D 场景一致）
     cropStageIcon: function (cropId, stageIdx) { return cropStageIconURL(cropId, stageIdx); },
     onClickPlot: function (cb) { callbacks.plot = cb; },
     onClickAnimal: function (cb) { callbacks.animal = cb; },
-    onClickMine: function (cb) { callbacks.mine = cb; }
+    onClickMine: function (cb) { callbacks.mine = cb; },
+    onClickCrate: function (cb) { callbacks.crate = cb; }
   };
 })();

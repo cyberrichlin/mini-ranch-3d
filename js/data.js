@@ -77,32 +77,32 @@ window.GAME_DATA = (function () {
   const animalTypes = {
     chicken: {
       key: 'chicken', name: '小鸡', icon: '🐔', product: '鸡蛋', productKey: 'egg', productIcon: '🥚',
-      feedDays: 1, basePrice: 50, buyPrice: 1500, scale: 0.95,
+      feedDays: 1, basePrice: 50, buyPrice: 1500, scale: 0.32,
       colors: { body: 0xfff8ea, accent: 0xff9f43, beak: 0xffc04d, comb: 0xef5350 }
     },
     cow: {
       key: 'cow', name: '奶牛', icon: '🐄', product: '牛奶', productKey: 'milk', productIcon: '🥛',
-      feedDays: 1, basePrice: 100, buyPrice: 5000, scale: 1.14,
+      feedDays: 1, basePrice: 100, buyPrice: 5000, scale: 1.00,
       colors: { body: 0xfff6f2, accent: 0x4a4a52, beak: 0xf7b4c0, comb: 0xf7b4c0 }
     },
     sheep: {
       key: 'sheep', name: '绵羊', icon: '🐑', product: '羊毛', productKey: 'wool', productIcon: '🧶',
-      feedDays: 3, basePrice: 150, buyPrice: 4000, scale: 1.05,
+      feedDays: 3, basePrice: 150, buyPrice: 4000, scale: 0.64,
       colors: { body: 0xfffdf8, accent: 0x6b6b74, beak: 0xf3c7c7, comb: 0xf3c7c7 }
     },
     anjela: {
       key: 'anjela', name: '安哥拉兔', icon: '🐰', product: '兔毛', productKey: 'rabbitwool', productIcon: '☁️',
-      feedDays: 3, basePrice: 120, buyPrice: 3000, scale: 0.78,
+      feedDays: 3, basePrice: 120, buyPrice: 3000, scale: 0.32,
       colors: { body: 0xfffdf8, accent: 0xf1c8d0, beak: 0xf7b8c4, comb: 0xf7b4c0 }
     },
     cat: {
       key: 'cat', name: '三花猫', icon: '🐱', product: '小鱼干', productKey: 'driedfish', productIcon: '🐟',
-      feedDays: 2, basePrice: 130, buyPrice: 3500, scale: 0.84,
+      feedDays: 2, basePrice: 130, buyPrice: 3500, scale: 0.32,
       colors: { body: 0xfff4e6, accent: 0xd98a4a, beak: 0xf7b4c0, comb: 0xf7b4c0 }
     },
     llama: {
       key: 'llama', name: '羊驼', icon: '🦙', product: '羊驼绒', productKey: 'llamawool', productIcon: '🧵',
-      feedDays: 3, basePrice: 180, buyPrice: 6000, scale: 1.08,
+      feedDays: 3, basePrice: 180, buyPrice: 6000, scale: 0.68,
       colors: { body: 0xfdf6ec, accent: 0xd9b892, beak: 0xf0c4c4, comb: 0xf0c4c4 }
     }
   };
