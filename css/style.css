@@ -116,12 +116,12 @@ p { margin: 0; }
 .hud-chip {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 12px;
-  background: #fff;
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #fffdf6, #fdf3dd);
+  border: 1.5px solid rgba(146, 120, 70, .35);
   border-radius: 999px;
   font-size: 13px;
   color: var(--text-soft);
-  box-shadow: 0 1px 2px rgba(94, 82, 60, .06);
+  box-shadow: 0 2px 0 rgba(146, 120, 70, .18), 0 2px 6px rgba(94, 82, 60, .1);
   white-space: nowrap;
 }
 .hud-chip .ci { font-size: 14px; }
@@ -345,6 +345,7 @@ button.mini {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 7px;
+  width: 100%;
   margin: 0 auto;
 }
 .plot {
@@ -359,15 +360,18 @@ button.mini {
   transition: transform .12s ease, box-shadow .12s ease;
   overflow: hidden;
 }
-/* 荒地（未耕）：乱杂草 + 石子，绿褐底色，不整齐 */
+/* 荒地（未耕）：乱杂草 + 石子，绿褐底色，不整齐（一眼能看出是荒地，不是光秃土） */
 .plot.waste {
   background:
-    radial-gradient(circle at 22% 28%, rgba(95, 159, 66, .6) 0 3px, transparent 4px),
-    radial-gradient(circle at 68% 62%, rgba(95, 159, 66, .55) 0 4px, transparent 5px),
-    radial-gradient(circle at 45% 82%, rgba(110, 130, 70, .6) 0 3px, transparent 4px),
-    radial-gradient(circle at 85% 25%, rgba(169, 162, 154, .85) 0 2px, transparent 3px),
-    radial-gradient(circle at 12% 68%, rgba(169, 162, 154, .7) 0 1.8px, transparent 2.8px),
-    linear-gradient(180deg, #a9a26c, #8d8852);
+    radial-gradient(circle at 22% 28%, rgba(74, 139, 44, .95) 0 5px, transparent 6px),
+    radial-gradient(circle at 68% 62%, rgba(74, 139, 44, .9) 0 6px, transparent 7px),
+    radial-gradient(circle at 45% 82%, rgba(90, 150, 60, .9) 0 5px, transparent 6px),
+    radial-gradient(circle at 85% 25%, rgba(74, 139, 44, .85) 0 4px, transparent 5px),
+    radial-gradient(circle at 12% 68%, rgba(74, 139, 44, .85) 0 4px, transparent 5px),
+    radial-gradient(circle at 55% 45%, rgba(110, 130, 70, .8) 0 3px, transparent 4px),
+    radial-gradient(circle at 85% 70%, rgba(169, 162, 154, .95) 0 3px, transparent 4px),
+    radial-gradient(circle at 12% 20%, rgba(169, 162, 154, .85) 0 2.5px, transparent 3.5px),
+    linear-gradient(180deg, #9aa061, #7d8148);
 }
 /* 已耕：浅黄褐 + 一道道垄沟 */
 .plot.plowed {
@@ -378,10 +382,15 @@ button.mini {
 /* 干裂（已耕、无作物、水分 0）：苍白底色 + 深色裂纹（新增视觉状态，玩法逻辑不变） */
 .plot.dry {
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M8 6 L18 22 L12 34 M30 4 L26 18 L38 30 L34 44 M48 10 L44 26 L54 38 M16 44 L24 52' stroke='%236b4a2f' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"),
-    linear-gradient(180deg, #d9b48f, #c8a276);
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M8 6 L18 22 L12 34 M30 4 L26 18 L38 30 L34 44 M48 10 L44 26 L54 38 M16 44 L24 52' stroke='%235a3d24' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, #e0bd96, #cfa87c);
   background-size: 60px 60px, cover;
 }
+/* 矿山全景图（矿洞页顶部）：整座山、山脚洞口 */
+.mine-hero { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-s); margin-bottom: 12px; position: relative; }
+.mine-hero svg { display: block; width: 100%; height: 300px; }
+@media (max-width: 767px) { .mine-hero svg { height: 190px; } }
+.mine-hero-cap { position: absolute; left: 10px; bottom: 8px; padding: 4px 10px; border-radius: 999px; background: rgba(255, 253, 246, .92); font-size: 12px; color: #6b543a; box-shadow: 0 1px 4px rgba(60, 46, 26, .25); }
 /* 浇过水：浅奶茶色暖棕（不要深巧克力色）+ 水珠点 */
 .plot.wet {
   background:

@@ -23,7 +23,7 @@ window.GAME_DATA = (function () {
 
   /* ---------- 四季 3D 色调（场景渲染用） ---------- */
   const seasonTheme = [
-    { sky: 0xcfe9ff, ground: 0x92d46c, ground2: 0x76bd52, fog: 0xe6f6dd, foliage: 0x7fca5a, foliage2: 0xa8e07e, trunk: 0x8a6242, decor: 'petal', ambient: 0xffffff, hill: 0x8ed46a },
+    { sky: 0xa8d8f2, ground: 0x6fb544, ground2: 0x76bd52, fog: 0xd4eabf, foliage: 0x7fca5a, foliage2: 0xa8e07e, trunk: 0x8a6242, decor: 'petal', ambient: 0xffffff, hill: 0x8ed46a },
     { sky: 0x9fd8ff, ground: 0x6bc44f, ground2: 0x51a83c, fog: 0xdff3e2, foliage: 0x3f9e3a, foliage2: 0x64bd4e, trunk: 0x7d5738, decor: 'bug', ambient: 0xffffff, hill: 0x66bd4a },
     { sky: 0xffe0b0, ground: 0xd9a65c, ground2: 0xbe8438, fog: 0xffeccd, foliage: 0xd97a2b, foliage2: 0xe8a24a, trunk: 0x7a5636, decor: 'leaf', ambient: 0xfff0d8, hill: 0xd79a4e },
     { sky: 0xd8e8f8, ground: 0xeaf3fb, ground2: 0xd2e2ee, fog: 0xf2f8ff, foliage: 0xdfe9f2, foliage2: 0xbcd2e2, trunk: 0x6f5a48, decor: 'snow', ambient: 0xf4f9ff, hill: 0xdce8f2 }
@@ -77,32 +77,32 @@ window.GAME_DATA = (function () {
   const animalTypes = {
     chicken: {
       key: 'chicken', name: '小鸡', icon: '🐔', product: '鸡蛋', productKey: 'egg', productIcon: '🥚',
-      feedDays: 1, basePrice: 50, buyPrice: 1500, scale: 0.32,
+      feedDays: 1, basePrice: 50, buyPrice: 1500, scale: 0.72,
       colors: { body: 0xfff8ea, accent: 0xff9f43, beak: 0xffc04d, comb: 0xef5350 }
     },
     cow: {
       key: 'cow', name: '奶牛', icon: '🐄', product: '牛奶', productKey: 'milk', productIcon: '🥛',
-      feedDays: 1, basePrice: 100, buyPrice: 5000, scale: 1.00,
+      feedDays: 1, basePrice: 100, buyPrice: 5000, scale: 1.30,
       colors: { body: 0xfff6f2, accent: 0x4a4a52, beak: 0xf7b4c0, comb: 0xf7b4c0 }
     },
     sheep: {
       key: 'sheep', name: '绵羊', icon: '🐑', product: '羊毛', productKey: 'wool', productIcon: '🧶',
-      feedDays: 3, basePrice: 150, buyPrice: 4000, scale: 0.64,
+      feedDays: 3, basePrice: 150, buyPrice: 4000, scale: 1.00,
       colors: { body: 0xfffdf8, accent: 0x6b6b74, beak: 0xf3c7c7, comb: 0xf3c7c7 }
     },
     anjela: {
       key: 'anjela', name: '安哥拉兔', icon: '🐰', product: '兔毛', productKey: 'rabbitwool', productIcon: '☁️',
-      feedDays: 3, basePrice: 120, buyPrice: 3000, scale: 0.32,
+      feedDays: 3, basePrice: 120, buyPrice: 3000, scale: 0.65,
       colors: { body: 0xfffdf8, accent: 0xf1c8d0, beak: 0xf7b8c4, comb: 0xf7b4c0 }
     },
     cat: {
       key: 'cat', name: '三花猫', icon: '🐱', product: '小鱼干', productKey: 'driedfish', productIcon: '🐟',
-      feedDays: 2, basePrice: 130, buyPrice: 3500, scale: 0.32,
+      feedDays: 2, basePrice: 130, buyPrice: 3500, scale: 0.60,
       colors: { body: 0xfff4e6, accent: 0xd98a4a, beak: 0xf7b4c0, comb: 0xf7b4c0 }
     },
     llama: {
       key: 'llama', name: '羊驼', icon: '🦙', product: '羊驼绒', productKey: 'llamawool', productIcon: '🧵',
-      feedDays: 3, basePrice: 180, buyPrice: 6000, scale: 0.68,
+      feedDays: 3, basePrice: 180, buyPrice: 6000, scale: 1.05,
       colors: { body: 0xfdf6ec, accent: 0xd9b892, beak: 0xf0c4c4, comb: 0xf0c4c4 }
     }
   };

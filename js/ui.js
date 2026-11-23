@@ -443,7 +443,7 @@ window.UI = (function () {
 
   function plotFace(p) {
     const fert = !!(p.plowed && p.fertilizerLevel > 0);
-    if (!p.plowed) return { icon: '🟫', label: '荒地', fert: false, stage: '' };
+    if (!p.plowed) return { icon: '🌿', label: '荒地', fert: false, stage: '' };
     if (!p.cropType) return { icon: '🟩', label: fert ? '已施肥' : '已耕地', fert: fert, stage: '' };
     const crop = D.getCropInfo(p.cropType);
     // 结果期同样使用「品种 × 结果阶段」的造型贴图，保证幼苗 / 生长 / 开花 / 结果四态在土里各不相同
@@ -1013,7 +1013,28 @@ window.UI = (function () {
     }).join('') + '</div>' : '<div class="muted">矿石背包是空的，去挖点矿石吧</div>';
 
     return [
-      '<div class="view-body">',
+      '<div class=\"view-body\">',
+      // 矿山全景：整座山、山脚洞口、灯笼、轨道矿车、铜/银/金/蓝晶矿脉（确认稿 mine v3）
+      '<div class=\"mine-hero\" role=\"img\" aria-label=\"矿山全景\">',
+      '  <svg viewBox="0 0 640 300" preserveAspectRatio="xMidYMax slice">',
+      '    <rect width="640" height="300" fill="#bfe3f7"/>',
+      '    <circle cx="540" cy="52" r="26" fill="#ffe98a"/><circle cx="540" cy="52" r="34" fill="#ffe98a" opacity="0.35"/>',
+      '    <g fill="#ffffff" opacity="0.92"><ellipse cx="120" cy="48" rx="52" ry="16"/><ellipse cx="160" cy="40" rx="38" ry="13"/><ellipse cx="330" cy="36" rx="46" ry="13"/></g>',
+      '    <path d="M0 300 L0 190 Q120 60 260 110 Q340 140 420 90 Q540 20 640 120 L640 300 Z" fill="#9a8a7a"/>',
+      '    <path d="M0 300 L0 230 Q140 130 280 170 Q420 200 640 150 L640 300 Z" fill="#8a7a68"/>',
+      '    <path d="M0 300 L0 260 Q180 210 320 240 Q480 265 640 235 L640 300 Z" fill="#7a6a58"/>',
+      '    <g><circle cx="180" cy="170" r="10" fill="#d8a75e"/><circle cx="180" cy="170" r="4" fill="#f2c14e"/><circle cx="430" cy="130" r="9" fill="#c2d0dd"/><circle cx="430" cy="130" r="4" fill="#ffffff"/><circle cx="500" cy="190" r="10" fill="#f2c14e"/><circle cx="500" cy="190" r="4" fill="#ffe98a"/><circle cx="300" cy="210" r="9" fill="#6db7e8"/><circle cx="300" cy="210" r="4" fill="#bfe3f7"/></g>',
+      '    <g><path d="M150 300 L210 300 L210 290 L150 290 Z" fill="#8a6242"/><path d="M170 290 L190 290 L190 300 L170 300 Z" fill="#6b4a30"/></g>',
+      '    <path d="M270 300 L290 220 Q320 190 350 220 L370 300 Z" fill="#3a2f2a"/>',
+      '    <ellipse cx="320" cy="232" rx="26" ry="34" fill="#241d18"/><path d="M298 232 Q320 206 342 232 Q320 222 298 232Z" fill="#3a2f2a"/>',
+      '    <g><rect x="296" y="252" width="10" height="14" rx="3" fill="#e8a33c"/><rect x="334" y="252" width="10" height="14" rx="3" fill="#e8a33c"/><circle cx="301" cy="259" r="4" fill="#ffe98a"/><circle cx="339" cy="259" r="4" fill="#ffe98a"/></g>',
+      '    <g stroke="#5e4630" stroke-width="5" stroke-linecap="round"><line x1="330" y1="300" x2="470" y2="300"/><line x1="350" y1="300" x2="490" y2="300"/></g>',
+      '    <g stroke="#8a6242" stroke-width="4"><line x1="360" y1="296" x2="360" y2="304"/><line x1="400" y1="296" x2="400" y2="304"/><line x1="440" y1="296" x2="440" y2="304"/></g>',
+      '    <g><rect x="392" y="272" width="44" height="24" rx="4" fill="#8a6242"/><rect x="392" y="272" width="44" height="10" rx="4" fill="#a9743f"/><circle cx="404" cy="284" r="5" fill="#3a2f2a"/><circle cx="424" cy="284" r="5" fill="#3a2f2a"/></g>',
+      '    <g><ellipse cx="90" cy="288" rx="26" ry="10" fill="#7ec85a"/><ellipse cx="560" cy="290" rx="30" ry="10" fill="#7ec85a"/><circle cx="90" cy="278" r="6" fill="#ff8fb0"/><circle cx="104" cy="282" r="5" fill="#ffd76a"/><circle cx="560" cy="280" r="6" fill="#ff8fb0"/></g>',
+      '  </svg>',
+      '  <div class="mine-hero-cap">⛏️ 整座矿山 · 山脚洞口 · 越深矿石越稀有</div>',
+      '</div>',
       digging,
       '  <div class="card">',
       '    <div class="card-h"><b>矿场</b><span class="muted">建议体力充足时前往</span></div>',

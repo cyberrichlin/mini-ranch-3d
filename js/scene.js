@@ -171,7 +171,7 @@ window.Scene = (function () {
         const s = mesh(sphere(1.1 + Math.random() * 0.9, 12, 10), cloudMat, (j - n / 2) * 1.4, Math.random() * 0.4, Math.random() * 0.6, c, false, false);
         s.scale.y = 0.62;
       }
-      c.position.set(-60 + Math.random() * 120, 20 + Math.random() * 8, -70 + Math.random() * 85);
+      c.position.set(-60 + Math.random() * 120, 34 + Math.random() * 8, -85 + Math.random() * 35);
       groups.clouds.add(c);
     }
     groups.terrain.add(groups.clouds);
@@ -240,6 +240,16 @@ window.Scene = (function () {
     const door = mesh(new THREE.BoxGeometry(1.1, 1.8, 0.2), toon(0x8d6242), h.x - 1.6, 0.9, h.z + 2.02, groups.buildings);
     void door;
     mesh(new THREE.BoxGeometry(1.1, 1.1, 0.2), toon(0x9fd8ff), h.x + 1.5, 2.0, h.z + 2.02, groups.buildings, false, false);
+    // 烟囱 + 圆窗 + 窗下花箱（Q 萌农舍一眼可辨）
+    mesh(new THREE.BoxGeometry(0.6, 1.4, 0.6), toon(0xc47a5a), h.x + 1.2, 4.9, h.z - 0.6, groups.buildings);
+    mesh(new THREE.BoxGeometry(0.8, 0.3, 0.8), toon(0x8d5a3c), h.x + 1.2, 5.65, h.z - 0.6, groups.buildings);
+    const roundWin = mesh(new THREE.CircleGeometry(0.55, 20), toon(0xfff6e0), h.x, 2.6, h.z + 2.03, groups.buildings, false, false);
+    void roundWin;
+    mesh(new THREE.CircleGeometry(0.42, 20), toon(0x9fd8ff), h.x, 2.6, h.z + 2.05, groups.buildings, false, false);
+    mesh(new THREE.BoxGeometry(1.5, 0.35, 0.35), toon(0x8a6242), h.x + 1.5, 1.35, h.z + 2.1, groups.buildings, false, false);
+    mesh(sphere(0.22, 10, 8), toon(0xff8fb0), h.x + 1.1, 1.6, h.z + 2.15, groups.buildings, false, false);
+    mesh(sphere(0.22, 10, 8), toon(0xffd76a), h.x + 1.5, 1.6, h.z + 2.15, groups.buildings, false, false);
+    mesh(sphere(0.22, 10, 8), toon(0xff8fb0), h.x + 1.9, 1.6, h.z + 2.15, groups.buildings, false, false);
 
     // 动物小屋
     const b = LAYOUT.barn;
@@ -249,6 +259,12 @@ window.Scene = (function () {
     barnRoof.rotation.z = 0;
     mesh(new THREE.BoxGeometry(0.3, 2.4, 4.6), toon(0xcf7f5c), b.x - 3.6, 4.1, b.z, groups.buildings);
     mesh(new THREE.BoxGeometry(0.3, 2.4, 4.6), toon(0xcf7f5c), b.x + 3.6, 4.1, b.z, groups.buildings);
+    // 谷仓大门 + 交叉木条（X 形，一眼认出是谷仓）
+    mesh(new THREE.BoxGeometry(2.0, 2.4, 0.2), toon(0x8d5a2b), b.x, 1.2, b.z + 2.15, groups.buildings, false, false);
+    const brace1 = mesh(new THREE.BoxGeometry(0.22, 2.9, 0.1), toon(0x6f4520), b.x, 1.2, b.z + 2.28, groups.buildings, false, false);
+    brace1.rotation.z = 0.6;
+    const brace2 = mesh(new THREE.BoxGeometry(0.22, 2.9, 0.1), toon(0x6f4520), b.x, 1.2, b.z + 2.28, groups.buildings, false, false);
+    brace2.rotation.z = -0.6;
 
     // 鸡舍
     const c = LAYOUT.coop;
@@ -479,8 +495,8 @@ window.Scene = (function () {
   }
 
   function buildFence() {
-    const postMat = toon(0xc08a55);
-    const railMat = toon(0xdba469);
+    const postMat = toon(0x9a6a35);
+    const railMat = toon(0xb07a3e);
     const postGeo = new THREE.CylinderGeometry(0.14, 0.16, 1.5, 7);
     const step = 2.6;   // 立柱间距（大栏杆用整条横栏，减少网格数）
     /* 每条边 = 两条整长横栏（门洞处断开）+ 立柱 */
@@ -501,7 +517,7 @@ window.Scene = (function () {
       }
       segs.forEach(s => {
         for (let k = 0; k < 2; k++) {
-          const rail = mesh(new THREE.BoxGeometry(horiz ? s[2] : 0.12, 0.16, horiz ? 0.12 : s[2]), railMat, s[0], 0.5 + k * 0.55, s[1], groups.props);
+          const rail = mesh(new THREE.BoxGeometry(horiz ? s[2] : 0.16, 0.2, horiz ? 0.16 : s[2]), railMat, s[0], 0.5 + k * 0.55, s[1], groups.props);
           void rail;
         }
       });
@@ -1198,7 +1214,7 @@ window.Scene = (function () {
     });
 
     if (state.dog.owned) {
-      dogRig = buildDog(0.48);   // 狗小（v12 比例：约牛的 0.42）
+      dogRig = buildDog(0.72);   // 狗小（v12 比例：约牛的 0.55，之前 0.48 太小看不见）
       dogRig.group.position.set(10, 0, 25);
       dogRig.walkSpeed = 0.95;            // 小狗比马更活跃，走动明显
       dogRig.id = 'dog'; dogRig.type = 'dog'; dogRig.baseScale = 0.48; dogRig.baseY = 0;
@@ -1213,7 +1229,7 @@ window.Scene = (function () {
     }
 
     if (state.horse.owned) {
-      horseRig = buildHorse(1.13);   // 马高大（v12 比例：比牛略高）
+      horseRig = buildHorse(1.35);   // 马高大（v12 比例：比牛略高）
       horseRig.group.position.set(-6, 0, 26);
       horseRig.id = 'horse'; horseRig.type = 'horse'; horseRig.baseScale = 1.13; horseRig.baseY = 0;
       horseRig.zone = 'free';
@@ -2173,7 +2189,7 @@ window.Scene = (function () {
     for (let i = -1; i <= 1; i++) {
       const w = 60 + Math.abs(i) * 50;
       const g = ctx.createLinearGradient(0, 0, 0, fxH * 1.3);
-      g.addColorStop(0, 'rgba(255,236,170,' + (0.18 * strength) + ')');
+      g.addColorStop(0, 'rgba(255,236,170,' + (0.1 * strength) + ')');
       g.addColorStop(1, 'rgba(255,236,170,0)');
       ctx.fillStyle = g;
       ctx.fillRect(i * 130 - w / 2, 0, w, fxH * 1.3);
@@ -2181,7 +2197,7 @@ window.Scene = (function () {
     ctx.restore();
     // 镜头光晕：右上角暖光团
     const glow = ctx.createRadialGradient(fxW * 0.86, fxH * 0.06, 0, fxW * 0.86, fxH * 0.06, fxW * 0.34);
-    glow.addColorStop(0, 'rgba(255,232,150,' + (0.28 * strength) + ')');
+    glow.addColorStop(0, 'rgba(255,232,150,' + (0.15 * strength) + ')');
     glow.addColorStop(1, 'rgba(255,232,150,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, fxW, fxH);
@@ -2322,14 +2338,14 @@ window.Scene = (function () {
     if (groups.sky) groups.sky.material.color.setHex(skyHex);
     if (renderer) renderer.setClearColor(skyHex, 1);
     /* 雾距按天气：晴 / 干旱要看得远（v12 开阔远景，远山可见），雨雪天才收近 */
-    const fogNear = weather === 4 ? 22 : weather === 2 ? 26 : weather === 5 ? 28 : weather === 1 ? 40 : weather === 3 ? 55 : 60;
-    const fogFar = weather === 4 ? 58 : weather === 2 ? 66 : weather === 5 ? 70 : weather === 1 ? 100 : weather === 3 ? 140 : 150;
+    const fogNear = weather === 4 ? 22 : weather === 2 ? 26 : weather === 5 ? 28 : weather === 1 ? 40 : weather === 3 ? 55 : 85;
+    const fogFar = weather === 4 ? 58 : weather === 2 ? 66 : weather === 5 ? 70 : weather === 1 ? 100 : weather === 3 ? 140 : 200;
     if (scene) scene.fog = new THREE.Fog(skyHex, fogNear, fogFar);
     if (renderer) renderer.toneMappingExposure = weather === 3 ? 1.25 : weather === 4 ? 0.85 : 1.0;
     if (groups.light) {
-      groups.light.intensity = 1.12 * dim;
+      groups.light.intensity = 0.62 * dim;
       groups.light.color.setHex(weather === 3 ? 0xfff6da : weather === 4 ? 0xc8d4e0 : 0xfff3d8);
-      groups.hemi.intensity = 0.72 * (dim + 0.15);
+      groups.hemi.intensity = 0.42 * (dim + 0.15);
     }
     groups._dim = dim;
     groups._skyHex = skyHex;
@@ -2388,7 +2404,7 @@ window.Scene = (function () {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0xdcefff, 72, 150);   // 远处轻微空气雾，增强景深
+    scene.fog = new THREE.Fog(0xdcefff, 85, 200);   // 远处轻微空气雾，增强景深
     gradientMap = makeGradientMap();
     camera = new THREE.PerspectiveCamera(50, 1, 0.1, 220);   // 视野 50°：新牧场栏杆更宽（32 格），38° 时栏边动物会出画，要拖镜头才找得到
     clock = new THREE.Clock();
@@ -2407,9 +2423,9 @@ window.Scene = (function () {
     groups.structures = new THREE.Group();
     scene.add(groups.terrain, groups.field, groups.buildings, groups.props, groups.animals, groups.structures);
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0xd8e8c8, 0.72);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0xd8e8c8, 0.42);
     scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xfff3d8, 1.12);
+    const dir = new THREE.DirectionalLight(0xfff3d8, 0.62);
     dir.position.set(16, 30, 14);
     dir.castShadow = true;
     dir.shadow.mapSize.set(2048, 2048);
@@ -2418,7 +2434,7 @@ window.Scene = (function () {
     dir.shadow.camera.near = 1; dir.shadow.camera.far = 80;
     dir.shadow.bias = -0.0012;
     scene.add(dir);
-    const amb = new THREE.AmbientLight(0xffffff, 0.2);
+    const amb = new THREE.AmbientLight(0xffffff, 0.1);
     scene.add(amb);
     groups.light = dir;
     groups.hemi = hemi;
@@ -2514,9 +2530,9 @@ window.Scene = (function () {
         if (!tracking) return;
         if (!panning && Math.hypot(e.clientX - downX, e.clientY - downY) > 12) panning = true;
         if (panning) {
-          /* 内容跟手走：往下拖看到更南边，往右拖看到更西边；x ±8，z -30..32（放牧空地到池塘） */
+          /* 内容跟手走：手指往下拖，画面内容跟着往下走（之前 z 是反的，上下拖动方向反了） */
           camPan.x = Math.max(-8, Math.min(8, camPan.x - (e.clientX - lastPX) * 0.045));
-          camPan.z = Math.max(-30, Math.min(32, camPan.z + (e.clientY - lastPY) * 0.045));
+          camPan.z = Math.max(-30, Math.min(32, camPan.z - (e.clientY - lastPY) * 0.045));
         }
         lastPX = e.clientX; lastPY = e.clientY;
       });
@@ -2540,7 +2556,7 @@ window.Scene = (function () {
         if (panning) {
           e.preventDefault();   // 拖动镜头时不滚动页面
           camPan.x = Math.max(-8, Math.min(8, camPan.x - (t.clientX - lastPX) * 0.045));
-          camPan.z = Math.max(-30, Math.min(32, camPan.z + (t.clientY - lastPY) * 0.045));
+          camPan.z = Math.max(-30, Math.min(32, camPan.z - (t.clientY - lastPY) * 0.045));
         }
         lastPX = t.clientX; lastPY = t.clientY;
       }, { passive: false });

@@ -1,6 +1,6 @@
 /* 自动生成：node tools/render-assets.js */
 window.MF_ASSETS = {
- "generatedAt": "2026-09-25T23:10:32.754Z",
+ "generatedAt": "2026-11-23T08:09:16.036Z",
  "heads": {
   "chicken": "assets/animals/chicken.png",
   "cow": "assets/animals/cow.png",
@@ -94,8 +94,6 @@ window.MF_ASSETS = {
   "heart_red": "assets/icons/heart_red.png",
   "nav_pasture": "assets/icons/nav_pasture.png",
   "nav_farm": "assets/icons/nav_farm.png",
-  "nav_animals": "assets/icons/nav_animals.png",
-  "nav_stable": "assets/icons/nav_stable.png",
   "nav_shop": "assets/icons/nav_shop.png",
   "nav_mine": "assets/icons/nav_mine.png",
   "nav_calendar": "assets/icons/nav_calendar.png",

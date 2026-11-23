@@ -302,7 +302,7 @@
     g.add(head);
     fn(head, rig);
     if (!isBaby()) {
-      head.scale.setScalar(0.86);
+      head.scale.setScalar(1.02);
       head.position.y -= 0.07;   // 缩小后轻微下沉，保持与脖子 / 躯干衔接不漏缝
     }
     rig.parts.head = head;
