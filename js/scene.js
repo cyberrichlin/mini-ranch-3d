@@ -38,7 +38,7 @@ window.Scene = (function () {
     pond: { x: 0, z: 34, r: 4.5 },
     mine: { x: 25, z: 0 },
     crate: { x: -17.5, z: 4.8 },
-    camOffset: { x: 0, y: 27, z: 26 },
+    camOffset: { x: 0, y: 20, z: 18 },   // 第三轮拉近：默认镜头同时看到放牧空地 + 牛羊栏，动物够大能看清
     /* 农田特写机位（农田 v9：镜头只是微微斜着往下看，不是完全垂直俯视；约 69° 仰角，植物能看到茎的高度） */
     camField: { x: 30, y: 17, z: -9.5, lookX: 30, lookY: 0, lookZ: -16 }
   };
@@ -72,7 +72,7 @@ window.Scene = (function () {
   };
 
   /* 土壤四态（农田 v9 确认稿）：翻耕浅驼色 / 浇水浅奶茶棕（绝不深巧克力）/ 施肥浅暖棕 + 黑点 / 干裂苍白 */
-  const SOIL_COLOR = { normal: 0xc79a68, wet: 0xa87a4e, fert: 0x9a6b3f, dry: 0xd9b48f };
+  const SOIL_COLOR = { normal: 0xc79a68, wet: 0xb9905f, fert: 0x9a6b3f, dry: 0xd9b48f };
 
   /* 生长阶段：0 幼苗 / 1 生长 / 2 开花 / 3 结果成熟 */
   const STAGE_NAMES = ['幼苗', '生长', '开花', '结果'];
@@ -95,7 +95,7 @@ window.Scene = (function () {
   let anim = { t: 0, rideAngle: 0, riders: 0, flash: 0 };
   let last = { season: -1, weather: -1, riding: false, animalSig: '' };
   let camMode = 'wide';   // wide 全景 / field 农田特写
-  let camPan = { x: 0, z: -16 };   // 拖动镜头平移量（牧场是竖长一页，往下拉看；默认停在牛羊栏 + 鸡栏，栏里动物可见，放牧空地在画面上方边缘，往上拖能看到）
+  let camPan = { x: 0, z: -19 };   // 拖动镜头平移量（牧场是竖长一页，往下拉看；默认停在放牧空地 + 牛羊栏之间，两者同时可见）
   let squirrelRig = null;   // 松鼠（平时在树上，下来啃果实）
   let fallbackCtx = null, fallbackCanvas = null, fallbackState = null;
   const toonMats = {};
@@ -179,7 +179,7 @@ window.Scene = (function () {
 
   function buildGround() {
     /* 草地一直延伸到远方（v12 远景）：大圆盘 + 远处雾色融合进天空 */
-    const g = mesh(new THREE.CircleGeometry(120, 48), soft(0x92d46c), 0, -0.02, 0, groups.terrain, false, true);
+    const g = mesh(new THREE.CircleGeometry(120, 48), soft(0x86c95e), 0, -0.02, 0, groups.terrain, false, true);   // 第三轮：草地饱和一点
     g.rotation.x = -Math.PI / 2;
     groups.ground = g;
 
@@ -574,7 +574,7 @@ window.Scene = (function () {
   function buildMeadow() {
     const M = LAYOUT.meadow;
     const cx = (M.minX + M.maxX) / 2, cz = (M.minZ + M.maxZ) / 2;
-    const oval = mesh(new THREE.CircleGeometry(17, 40), new THREE.MeshLambertMaterial({ color: 0xa8e07e }), cx, 0.02, cz, groups.terrain, false, true);
+    const oval = mesh(new THREE.CircleGeometry(17, 40), new THREE.MeshLambertMaterial({ color: 0x9bd46f }), cx, 0.02, cz, groups.terrain, false, true);
     oval.rotation.x = -Math.PI / 2;
     oval.scale.set(1, 0.22, 1);
     // 边缘草丛圈
@@ -1141,10 +1141,12 @@ window.Scene = (function () {
   ];
 
   /* 按当前区域取一个散步范围：栏内 / 放牧空地 / 自由活动区 */
+  /* 放牧活动带：默认镜头在 390 宽竖屏上约能看到 x -7.5..7.5（竖屏横向视野窄），
+     放牧动物只在这一带散步/落点，才不会跑出画面外；草地本身仍是 30 宽的大椭圆 */
   function roamRectFor(rig) {
-    if (rig.zone === 'meadow') {
+    if (rig.zone === 'meadow' || (rig.type === 'cat' && rig.grazing)) {
       const M = LAYOUT.meadow;
-      return { minX: M.minX + 1.5, maxX: M.maxX - 1.5, minZ: M.minZ + 1, maxZ: M.maxZ - 1 };
+      return { minX: M.minX + 8, maxX: M.maxX - 8, minZ: M.minZ + 3.5, maxZ: M.maxZ - 1 };
     }
     if (rig.zone === 'free') return FREE_RECTS[Math.floor(Math.random() * FREE_RECTS.length)];
     const R = rig.penKey ? penByKey(rig.penKey) : null;
@@ -1194,9 +1196,10 @@ window.Scene = (function () {
       const idx = (penCount[a.type] = (penCount[a.type] || 0));
       penCount[a.type] = idx + 1;
       if (a.type === 'cat') {
-        /* 猫散养：全场自由跑，也会上屋顶 */
+        /* 猫散养：全场自由跑，也会上屋顶；放牧中则直接生在放牧空地可见带里 */
         rig.zone = 'free';
-        rig.group.position.set(-6 + Math.random() * 4, 0, 25 + Math.random() * 3);
+        if (a.grazing) rig.group.position.set(-7 + Math.random() * 14, 0, -34.5 + Math.random() * 2);
+        else rig.group.position.set(-6 + Math.random() * 4, 0, 25 + Math.random() * 3);
       } else if (key) {
         const slots = penSlots(key, Math.max(1, typeCount[a.type]));
         const s = slots[Math.min(idx, slots.length - 1)];
@@ -1479,7 +1482,7 @@ window.Scene = (function () {
       if (rig.grazing && rig.zone === 'pen' && rig.penKey && GRAZE_ROUTES[rig.penKey]) {
         const pts = GRAZE_ROUTES[rig.penKey].map(p => ({ x: p[0], z: p[1] }));
         const M = LAYOUT.meadow;
-        pts.push({ x: M.minX + 1.5 + Math.random() * (M.maxX - M.minX - 3), z: M.minZ + 1 + Math.random() * (M.maxZ - M.minZ - 2) });
+        pts.push({ x: M.minX + 8 + Math.random() * (M.maxX - M.minX - 16), z: M.minZ + 3.5 + Math.random() * (M.maxZ - M.minZ - 4.5) });   // 落点收进默认镜头可见带
         rig.trip = { kind: 'graze', pts: pts, leg: 0, speed: 2.6 };
         rig.eating = 0;
       } else if (!rig.grazing && rig.zone === 'meadow' && rig.penKey) {
@@ -1488,7 +1491,7 @@ window.Scene = (function () {
         pts.push({ x: R.cx, z: R.cz });
         rig.trip = { kind: 'return', pts: pts, leg: 0, speed: 2.6 };
         rig.eating = 0;
-      } else if (rig.type === 'cat' && !rig.roof && !rig.trip && Math.random() < dt * 0.02) {
+      } else if (rig.type === 'cat' && !rig.grazing && !rig.roof && !rig.trip && Math.random() < dt * 0.02) {
         /* 猫上屋顶：先走到屋前，再跳上屋顶待一会儿 */
         const spot = ROOF_SPOTS[Math.floor(Math.random() * ROOF_SPOTS.length)];
         rig.roofBackX = spot.gx; rig.roofBackZ = spot.gz;
@@ -2944,16 +2947,28 @@ window.Scene = (function () {
       var dir = new THREE.Vector3();
       camera.getWorldDirection(dir);
       var all = animalRigs.concat(dogRig ? [dogRig] : []).concat(horseRig ? [horseRig] : []);
+      var vf2 = new THREE.Vector2(); renderer.getSize(vf2);
+      var vFov2 = camera.fov * Math.PI / 180;
+      var box2 = new THREE.Box3(), size2 = new THREE.Vector3(), center2 = new THREE.Vector3();
       all.forEach(function (r) {
         v.set(r.group.position.x, 1.0, r.group.position.z).project(camera);
+        box2.setFromObject(r.group); box2.getSize(size2); box2.getCenter(center2);
+        var rWorld = Math.max(size2.x, size2.y, size2.z) / 2;
+        var dist = camera.position.distanceTo(center2);
+        var worldH = 2 * Math.tan(vFov2 / 2) * dist;
         out.push({
           id: r.id || r.type,
+          type: r.type,
+          zone: r.zone,
+          grazing: !!r.grazing,
           wx: +r.group.position.x.toFixed(2),
           wy: +r.group.position.y.toFixed(2),
           wz: +r.group.position.z.toFixed(2),
           x: +((v.x + 1) / 2).toFixed(3),
           y: +((1 - v.y) / 2).toFixed(3),
-          inView: v.x > -1 && v.x < 1 && v.y > -1 && v.y < 1 && v.z < 1
+          inView: v.x > -1 && v.x < 1 && v.y > -1 && v.y < 1 && v.z < 1,
+          camDist: +dist.toFixed(1),
+          heightPx: +(2 * rWorld * (vf2.y / worldH)).toFixed(1)
         });
       });
       /* 松鼠调试位（与动物同口径：屏幕分数 0..1；state: tree/down/gnaw/up/flee/hide/peek） */

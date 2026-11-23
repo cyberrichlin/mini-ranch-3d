@@ -153,9 +153,17 @@
       g.position.set(dx * s, dy, dz);
       g.rotation.y = s * (opt.rotY === undefined ? 0.18 : opt.rotY);
       head.add(g);
-      part(g, sph(r, 16), ink(opt.pupil === undefined ? 0x241f1c : opt.pupil), [0, 0, 0], [1, 1.06, 1]);
-      part(g, sph(r * 0.36, 10), ink(0xffffff), [-r * 0.28, r * 0.34, r * 0.7]);
-      part(g, sph(r * 0.17, 8), ink(0xf6fbff), [r * 0.34, -r * 0.3, r * 0.74]);
+      if (opt.iris !== undefined) {
+        // 彩色虹膜 + 黑瞳孔（原来 pupil 颜色会涂满整个眼球：绿眼变实心绿球）
+        part(g, sph(r, 16), ink(opt.iris), [0, 0, 0], [1, 1.06, 0.9]);
+        part(g, sph(r * 0.62, 14), ink(0x241f1c), [0, 0, r * 0.42], [1, 1.06, 1]);
+        part(g, sph(r * 0.22, 10), ink(0xffffff), [-r * 0.22, r * 0.3, r * 0.78]);
+        part(g, sph(r * 0.11, 8), ink(0xf6fbff), [r * 0.26, -r * 0.24, r * 0.82]);
+      } else {
+        part(g, sph(r, 16), ink(opt.pupil === undefined ? 0x241f1c : opt.pupil), [0, 0, 0], [1, 1.06, 1]);
+        part(g, sph(r * 0.36, 10), ink(0xffffff), [-r * 0.28, r * 0.34, r * 0.7]);
+        part(g, sph(r * 0.17, 8), ink(0xf6fbff), [r * 0.34, -r * 0.3, r * 0.74]);
+      }
       out.push(g);
     }
     return out;
@@ -163,7 +171,7 @@
 
   function blush(parent, r, x, y, z, color) {
     for (var s = -1; s <= 1; s += 2) {
-      part(parent, sph(r, 10), soft(color === undefined ? 0xf79aa8 : color, 0.55), [x * s, y, z], [1, 0.72, 0.5]);
+      part(parent, sph(r, 10), soft(color === undefined ? 0xf79aa8 : color, 0.72), [x * s, y, z], [1.15, 0.8, 0.55]);
     }
   }
 
@@ -310,72 +318,79 @@
   }
 
   function headChicken(head, rig) {
-    var R = 0.44;
+    var R = 0.46;
     var skull = part(head, sph(R, 22), toon(0xfffbf2), [0, 0.03, 0], [1, 1.02, 1.04]);
     outlineOf(skull, 1.05);
-    // 鸡冠：三枚圆球，圆润不尖锐
-    var comb = toon(0xe8463c);
-    part(head, sph(0.13, 12), comb, [0, R * 0.98, 0.14], [0.9, 1.25, 1.3]);
-    part(head, sph(0.16, 14), comb, [0, R * 1.1, -0.01], [0.9, 1.3, 1.35]);
-    part(head, sph(0.12, 12), comb, [0, R * 0.96, -0.17], [0.9, 1.15, 1.25]);
-    // 喙：圆润小锥（顶端收成极小半径，读作圆喙而非尖刺）
-    var beak = part(head, cyl(0.014, 0.12, 0.26, 10), toon(0xf6a11d), [0, -0.06, R * 0.88], [1, 1, 0.9], [Math.PI / 2, 0, 0]);
+    // 鸡冠：三枚饱满红冠瓣，颜色加深（图标色阶会提亮，浅红会洗成粉）
+    var comb = toon(0xd42a1e);
+    part(head, sph(0.15, 12), comb, [0, R * 0.96, 0.16], [0.9, 1.25, 1.3]);
+    part(head, sph(0.19, 14), comb, [0, R * 1.08, -0.01], [0.9, 1.3, 1.35]);
+    part(head, sph(0.14, 12), comb, [0, R * 0.94, -0.18], [0.9, 1.15, 1.25]);
+    // 喙：橘黄大圆喙（圆锥加粗，顶端收圆）
+    var beak = part(head, cyl(0.02, 0.14, 0.3, 10), toon(0xf59a1a), [0, -0.06, R * 0.88], [1, 1, 0.9], [Math.PI / 2, 0, 0]);
     outlineOf(beak, 1.09, 0.58);
-    // 肉垂
-    part(head, sph(0.085, 10), comb, [0, -0.24, R * 0.62], [0.85, 1.15, 0.85]);
-    rig.parts.eyes = makeEyes(head, 0.12, 0.175, 0.045, R * 0.8, { rotY: 0.16 });
-    blush(head, 0.065, 0.255, -0.095, 0.29);
+    // 肉垂：两枚红垂
+    part(head, sph(0.1, 10), comb, [-0.07, -0.26, R * 0.6], [0.85, 1.15, 0.85]);
+    part(head, sph(0.1, 10), comb, [0.07, -0.26, R * 0.6], [0.85, 1.15, 0.85]);
+    rig.parts.eyes = makeEyes(head, 0.135, 0.185, 0.05, R * 0.8, { rotY: 0.16 });
+    blush(head, 0.07, 0.26, -0.1, 0.29);
   }
-
   function headDuck(head, rig) {
-    var R = 0.44;
+    var R = 0.46;
     var skull = part(head, sph(R, 22), toon(0xfff8e6), [0, 0.02, 0], [1, 1.0, 1.06]);
     outlineOf(skull, 1.05, 0.9);
-    // 头顶小绒球
     part(head, sph(0.13, 12), toon(0xfff8e6), [0, R * 0.9, -0.12], [1.25, 0.75, 1.1]);
-    // 扁嘴：宽扁圆润的鸭嘴
-    var bill = part(head, sph(0.18, 14), toon(0xf6a623), [0, -0.1, R * 0.88], [1.5, 0.5, 1.2]);
+    // 扁嘴：宽扁橘嘴（上片宽亮、下片深橘，只比颅面高出一点）
+    var bill = part(head, sph(0.17, 14), toon(0xe87f14), [0, -0.15, R * 0.86], [1.6, 0.36, 1.1]);
     outlineOf(bill, 1.06, 0.6);
-    part(head, sph(0.09, 10), toon(0xf9bf52), [0, -0.07, R * 1.2], [1.25, 0.5, 0.8]);
-    rig.parts.eyes = makeEyes(head, 0.12, 0.175, 0.09, R * 0.8, { rotY: 0.16 });
-    blush(head, 0.065, 0.245, -0.06, 0.3);
+    part(head, sph(0.09, 10), toon(0xf5a623), [0, -0.11, R * 1.14], [1.3, 0.38, 0.7]);
+    part(head, sph(0.11, 10), toon(0xe87f14), [0, -0.2, R * 0.92], [1.35, 0.3, 0.9]);
+    rig.parts.eyes = makeEyes(head, 0.135, 0.185, 0.1, R * 0.8, { rotY: 0.16 });
+    blush(head, 0.07, 0.25, -0.06, 0.3);
   }
-
   function headCow(head, rig) {
-    var R = 0.6;
+    var R = 0.64;
     var skull = part(head, sph(R, 24), toon(0xfffcf7), [0, 0, 0], [1, 0.97, 1.06]);
     outlineOf(skull, 1.04);
-    // 黑白花斑（避开眼部，保证眼睛清晰可读）
-    part(head, sph(0.26, 14), toon(0x39353f), [-0.16, 0.36, 0.4], [1.05, 0.7, 0.5]);
-    part(head, sph(0.22, 14), toon(0x39353f), [-0.44, -0.06, 0.22], [0.6, 0.92, 0.55]);
-    // 短圆牛角
+    var PATCH = 0x221e24;  // 真黑斑（图标色阶提亮，0x39353f 会洗成灰）
+    // 眼周黑斑：眼睛就长在黑斑上（斑块只比颅面高出约 0.05，不再是浮起的圆盘）
+    part(head, sph(0.21, 14), toon(PATCH), [-0.29, 0.14, 0.52], [1, 1.2, 0.5]);
+    part(head, sph(0.21, 14), toon(PATCH), [0.29, 0.14, 0.52], [1, 1.2, 0.5]);
+    // 额顶与侧面黑斑
+    part(head, sph(0.24, 14), toon(PATCH), [-0.2, 0.44, 0.38], [1.05, 0.6, 0.5]);
+    part(head, sph(0.2, 14), toon(PATCH), [-0.56, -0.08, 0.28], [0.45, 0.9, 0.9]);
+    part(head, sph(0.18, 14), toon(PATCH), [0.54, -0.14, 0.3], [0.45, 0.85, 0.9]);
+    // 牛角：三球拼成的短粗弯角（黏土风，细锥 + 圆头会被读成天线）
     for (var s = -1; s <= 1; s += 2) {
-      var horn = part(head, torus(0.16, 0.06, Math.PI * 1.1), toon(0xf7ead2),
-        [0.3 * s, 0.46, 0.04], null, [0.35, s * 0.5, s * -1.05]);
-      outlineOf(horn, 1.12, 0.72);
+      var hc = toon(0xf7ead2);
+      outlineOf(part(head, sph(0.11, 12), hc, [0.32 * s, 0.58, 0.0]), 1.1, 0.72);
+      outlineOf(part(head, sph(0.085, 10), hc, [0.42 * s, 0.66, 0.0]), 1.1, 0.72);
+      outlineOf(part(head, sph(0.06, 10), hc, [0.5 * s, 0.72, 0.0]), 1.1, 0.72);
     }
-    // 耳
+    // 耳：深灰外耳 + 粉色内耳
     for (var e = -1; e <= 1; e += 2) {
-      var ear = part(head, sph(0.2, 12), toon(0xf6ddd0),
-        [0.6 * e, 0.04, -0.06], [0.46, 0.66, 1.15], [0, e * -0.5, e * 0.28]);
+      var ear = part(head, sph(0.22, 12), toon(0x2a272e),
+        [0.64 * e, 0.02, -0.06], [0.5, 0.62, 1.1], [0, e * -0.5, e * 0.28]);
       outlineOf(ear, 1.06, 0.72);
+      part(head, sph(0.12, 10), toon(0xf2a0b0),
+        [0.62 * e, 0.02, 0.02], [0.5, 0.6, 0.5], [0, e * -0.5, e * 0.28]);
     }
-    // 口鼻
-    var muz = part(head, sph(0.3, 18), toon(0xf9b3c2), [0, -0.32, 0.44], [1, 0.72, 0.78]);
+    // 口鼻：大粉鼻
+    var muz = part(head, sph(0.34, 18), toon(0xf2a0b0), [0, -0.34, 0.46], [1.05, 0.72, 0.78]);
     outlineOf(muz, 1.05, 0.82);
-    for (var n = -1; n <= 1; n += 2) part(head, sph(0.05, 8), toon(0xdd8497), [0.12 * n, -0.33, 0.66], [1, 0.8, 0.5]);
-    rig.parts.eyes = makeEyes(head, 0.15, 0.29, 0.13, R * 0.82, { rotY: 0.2 });
-    blush(head, 0.105, 0.49, -0.16, 0.3, 0xf5a0ad);
+    for (var n = -1; n <= 1; n += 2) part(head, sph(0.055, 8), toon(0xc96a7e), [0.13 * n, -0.35, 0.68], [1, 0.8, 0.5]);
+    rig.parts.eyes = makeEyes(head, 0.16, 0.3, 0.14, R * 0.82, { rotY: 0.2 });
+    blush(head, 0.11, 0.5, -0.16, 0.3, 0xf5a0ad);
   }
-
   function headSheep(head, rig) {
-    var R = 0.5;
+    var R = 0.47;
     // 羊毛外圈（先铺，脸压在前面）
     puffs(head, [
       [0, 0.36, -0.14, 0.27], [0.32, 0.26, -0.2, 0.25], [-0.32, 0.26, -0.2, 0.25],
-      [0.42, 0.02, -0.24, 0.24], [-0.42, 0.02, -0.24, 0.24], [0, 0.44, 0.06, 0.22]
+      [0.42, 0.02, -0.24, 0.24], [-0.42, 0.02, -0.24, 0.24], [0, 0.44, 0.06, 0.22],
+      [0.18, 0.44, -0.18, 0.2], [-0.18, 0.44, -0.18, 0.2]
     ], 0xfffdf6, 0.92);
-    var face = part(head, sph(R, 20), toon(0xf7e3d0), [0, -0.03, 0.12], [0.88, 0.9, 0.9]);
+    var face = part(head, sph(R, 20), toon(0xf3d9bd), [0, -0.03, 0.12], [0.88, 0.9, 0.9]);
     outlineOf(face, 1.045, 0.74);
     // 正面上沿绒毛：拉开与纯白头部的区别，缩略图也能一眼读出「绵羊」
     puffs(head, [
@@ -404,70 +419,71 @@
         [0.46 * hn, bigHorn ? 0.6 : 0.46, 0.1], [1, 1, 1]);
       outlineOf(hornTip, 1.14, 0.66);
     }
-    rig.parts.eyes = makeEyes(head, 0.125, 0.2, 0.055, 0.4, { rotY: 0.18 });
+    rig.parts.eyes = makeEyes(head, 0.14, 0.2, 0.055, 0.4, { rotY: 0.18 });
     blush(head, 0.08, 0.3, -0.16, 0.32, 0xf0a8b4);
   }
-
   function headRabbit(head, rig) {
     var R = 0.46;
     var skull = part(head, sph(R, 22), toon(0xfffdfa), [0, 0, 0], [1, 1.02, 1.04]);
     outlineOf(skull, 1.05, 0.92);
-    // 短毛风格：去掉头顶蓬松毛团，改为平滑颅骨；加浅粉口鼻区（像猫/狗那样顺滑）
+    // 额顶绒毛：三团小毛球（安哥拉兔毛茸茸）
+    [[-0.16, 0.42, 0.1, 0.12], [0, 0.46, 0.12, 0.13], [0.16, 0.42, 0.1, 0.12]].forEach(function (p) {
+      outlineOf(part(head, sph(p[3], 10), toon(0xfffdfa), [p[0], p[1], p[2]]), 1.05, 0.9);
+    });
     var muz = part(head, sph(0.18, 14), toon(0xffecf2), [0, -0.2, 0.34], [1.12, 0.7, 0.8]);
     outlineOf(muz, 1.05, 0.86);
-    // 长耳（圆润桨形 + 粉色内耳）：两只明显分开、向外张开，不再贴着脑袋
-    var earLen = isBaby() ? 1.95 : 2.5;
+    // 长直耳：更长更直（外张角 0.54→0.38），粉色内耳更大
+    var earLen = isBaby() ? 2.1 : 2.85;
     for (var e = -1; e <= 1; e += 2) {
       var ear = new THREE.Group();
       ear.position.set(0.24 * e, 0.28, -0.02);
-      ear.rotation.set(-0.08, -e * 0.14, -e * (isBaby() ? 0.62 : 0.54));
+      ear.rotation.set(-0.08, -e * 0.14, -e * (isBaby() ? 0.5 : 0.38));
       head.add(ear);
-      var pad = part(ear, sph(0.128, 14), toon(0xfffdfa), [0, 0.3, 0], [1, earLen, 0.6]);
+      var pad = part(ear, sph(0.135, 14), toon(0xfffdfa), [0, 0.3, 0], [1, earLen, 0.6]);
       outlineOf(pad, 1.06, 0.9);
-      part(ear, sph(0.07, 10), soft(0xf8bccb, 0.95), [0, 0.3, 0.048], [1, earLen * 0.9, 0.48]);
+      part(ear, sph(0.075, 10), soft(0xf8bccb, 0.95), [0, 0.3, 0.048], [1, earLen * 0.9, 0.48]);
     }
     var nose = part(head, sph(0.065, 10), toon(0xf79bb0), [0, -0.09, 0.4], [1, 0.8, 0.62]);
     outlineOf(nose, 1.08, 0.86);
-    rig.parts.eyes = makeEyes(head, 0.125, 0.2, 0.05, 0.355, { rotY: 0.16 });
+    rig.parts.eyes = makeEyes(head, 0.14, 0.2, 0.05, 0.355, { rotY: 0.16 });
     blush(head, 0.08, 0.29, -0.14, 0.29);
   }
-
   function headHorse(head, rig) {
     var R = 0.5;
-    var skull = part(head, sph(R, 22), toon(0xb5763c), [0, 0, 0], [0.86, 1.0, 1.24]);
+    var skull = part(head, sph(R, 22), toon(0xa86a32), [0, 0, 0], [0.86, 1.0, 1.24]);
     outlineOf(skull, 1.045, 0.5);
     // 额头白斑
     part(head, sph(0.12, 12), toon(0xf7eee2), [0, 0.16, 0.4], [0.7, 1.1, 0.5]);
     // 长口鼻
-    var muz = part(head, sph(0.29, 16), toon(0xf2d6b4), [0, -0.28, 0.5], [1, 0.7, 1.0]);
+    var muz = part(head, sph(0.31, 16), toon(0xe8c39a), [0, -0.28, 0.5], [1, 0.7, 1.0]);
     outlineOf(muz, 1.05, 0.68);
-    for (var n = -1; n <= 1; n += 2) part(head, sph(0.055, 8), toon(0x8f5f3a), [0.12 * n, -0.3, 0.74], [1, 0.86, 0.5]);
+    for (var n = -1; n <= 1; n += 2) part(head, sph(0.06, 8), toon(0x8f5f3a), [0.13 * n, -0.3, 0.74], [1, 0.86, 0.5]);
     part(head, cyl(0.016, 0.016, 0.16, 6), toon(0x8f5f3a), [0, -0.44, 0.62], null, [0, 0, Math.PI / 2]);
-    // 长耳：明显加长 + 整体向外翻（顶端圆润、根部略粗、带粉色内耳）
+    // 长耳：短粗锥形耳（原来细长圆柱像两根天线），棕色 + 粉色内耳，向外张开
     for (var e = -1; e <= 1; e += 2) {
       var earPivot = new THREE.Group();
-      earPivot.position.set(0.24 * e, 0.34, -0.06);
-      earPivot.rotation.set(-0.14, 0, -e * 0.66);
+      earPivot.position.set(0.26 * e, 0.36, -0.06);
+      earPivot.rotation.set(-0.14, 0, -e * 0.42);
       head.add(earPivot);
-      var hear = part(earPivot, cyl(0.05, 0.1, 0.56, 12), toon(0xa8683a), [0, 0.28, 0], [1, 1, 0.78]);
+      var hear = part(earPivot, con(0.13, 0.38, 12), toon(0x8a5a30), [0, 0.19, 0]);
       outlineOf(hear, 1.07, 0.5);
-      var hearTip = part(earPivot, sph(0.056, 10), toon(0xa8683a), [0, 0.56, 0], [1, 1.2, 0.78]);
-      outlineOf(hearTip, 1.08, 0.5);
-      part(earPivot, sph(0.038, 10), soft(0xe8b7a4, 0.9), [0, 0.29, 0.032], [1, 3.4, 0.5]);
+      part(earPivot, sph(0.06, 10), soft(0xe8b7a4, 0.9), [0, 0.18, 0.05], [1, 2.2, 0.5]);
     }
-    // 鬃毛：圆润块面沿额顶向后（收窄以免遮住长耳根部）
-    part(head, sph(0.18, 12), toon(0x5b3a22), [0, 0.4, -0.1], [0.8, 0.68, 1.45]);
-    part(head, sph(0.18, 12), toon(0x5b3a22), [0, 0.3, -0.42], [0.85, 0.68, 1.35]);
-    rig.parts.eyes = makeEyes(head, 0.17, 0.24, 0.1, 0.4, { rotY: 0.22 });
-    blush(head, 0.12, 0.35, -0.17, 0.3, 0xf2a0a8);
+    // 鬃毛：额前刘海 + 两侧垂鬃（框住脸，确认稿特征）
+    part(head, sph(0.19, 12), toon(0x4a2e18), [0, 0.42, -0.08], [0.85, 0.7, 1.45]);
+    part(head, sph(0.17, 12), toon(0x4a2e18), [0, 0.32, -0.42], [0.85, 0.68, 1.35]);
+    part(head, sph(0.16, 12), toon(0x4a2e18), [-0.4, 0.1, -0.12], [0.5, 1.2, 0.8]);
+    part(head, sph(0.16, 12), toon(0x4a2e18), [0.4, 0.1, -0.12], [0.5, 1.2, 0.8]);
+    part(head, sph(0.16, 12), toon(0x4a2e18), [0, 0.47, 0.18], [1.7, 0.55, 0.5]);
+    rig.parts.eyes = makeEyes(head, 0.185, 0.24, 0.1, 0.4, { rotY: 0.22, iris: 0x5a3418 });
+    blush(head, 0.13, 0.35, -0.17, 0.3, 0xf2a0a8);
     // 胖脸颊：两团浅色圆颊，配大眼 + 腮红更萌
-    part(head, sph(0.16, 12), toon(0xf2d6b4), [-0.34, -0.12, 0.32], [1, 0.9, 0.6]);
-    part(head, sph(0.16, 12), toon(0xf2d6b4), [0.34, -0.12, 0.32], [1, 0.9, 0.6]);
+    part(head, sph(0.19, 12), toon(0xe8c39a), [-0.34, -0.12, 0.32], [1, 0.9, 0.6]);
+    part(head, sph(0.19, 12), toon(0xe8c39a), [0.34, -0.12, 0.32], [1, 0.9, 0.6]);
   }
-
   function headDog(head, rig) {
     var R = 0.48;
-    var skull = part(head, sph(R, 22), toon(0xf2c877), [0, 0, 0], [1, 1, 1.08]);
+    var skull = part(head, sph(R, 22), toon(0xeeb95e), [0, 0, 0], [1, 1, 1.08]);
     outlineOf(skull, 1.05, 0.58);
     // 眼周深色斑，与奶牛/马区分
     part(head, sph(0.2, 12), toon(0xdcab52), [0.34, 0.08, 0.24], [0.72, 0.92, 0.55]);
@@ -479,35 +495,37 @@
     if (!isBaby()) {
       var jaw = part(head, sph(0.15, 12), toon(0xf7e2c8), [0, -0.27, 0.5], [0.9, 0.6, 1.12]);
       outlineOf(jaw, 1.05, 0.86);
+      // 舌头：确认稿里张嘴笑的粉舌头
+      part(head, sph(0.09, 10), toon(0xef8a9a), [0, -0.36, 0.52], [1, 0.55, 0.6]);
     }
     part(head, sph(0.085, 10), ink(0x3a2f2a), [0, -0.05, 0.58 + snout * 1.3], [1.15, 0.8, 0.6]);
-    // 耷拉耳
+    // 耷拉耳：垂在脸颊两侧（原来横贴在头顶两侧，正面看不见）
     for (var e = -1; e <= 1; e += 2) {
-      var ear = part(head, sph(0.21, 12), toon(0xd99a4e),
-        [0.35 * e, 0.16, -0.04], [0.52, 1.12, 0.9], [0, 0, e * 1.0]);
+      var ear = part(head, sph(0.21, 12), toon(0xb87a2e),
+        [0.44 * e, -0.06, -0.02], [0.55, 1.35, 0.7], [0, 0, e * 0.22]);
       outlineOf(ear, 1.06, 0.58);
     }
-    rig.parts.eyes = makeEyes(head, 0.155, 0.2, 0.06, 0.36, { rotY: 0.16 });
-    blush(head, 0.11, 0.28, -0.14, 0.3, 0xf2a8a8);
+    rig.parts.eyes = makeEyes(head, 0.175, 0.2, 0.06, 0.36, { rotY: 0.16, iris: 0x5a3418 });
+    blush(head, 0.12, 0.28, -0.14, 0.3, 0xf2a8a8);
     // 胖脸颊：两团浅色圆颊，配大眼 + 腮红更萌
-    part(head, sph(0.15, 12), toon(0xfff4e2), [-0.32, -0.1, 0.3], [1, 0.9, 0.6]);
-    part(head, sph(0.15, 12), toon(0xfff4e2), [0.32, -0.1, 0.3], [1, 0.9, 0.6]);
+    part(head, sph(0.17, 12), toon(0xfff4e2), [-0.32, -0.1, 0.3], [1, 0.9, 0.6]);
+    part(head, sph(0.17, 12), toon(0xfff4e2), [0.32, -0.1, 0.3], [1, 0.9, 0.6]);
   }
-
   function headCat(head, rig) {
     var R = 0.48;
     // 三花猫：白底 + 橘斑 + 黑斑（与确认稿 sheet2 / sheet4 v6 一致，不再是深灰猫）
     var skull = part(head, sph(R, 22), toon(0xfffaf2), [0, 0, 0], [1, 1, 1.02]);
     outlineOf(skull, 1.05, 0.92);
-    // 头顶橘斑（避开眼部）与左侧黑斑
-    part(head, sph(0.24, 14), toon(0xe8973c), [0.14, 0.38, 0.36], [1.1, 0.62, 0.5]);
-    part(head, sph(0.2, 14), toon(0x39353f), [-0.4, 0.1, 0.3], [0.62, 0.9, 0.5]);
-    // 圆润三角耳 + 粉色内耳
+    // 三花斑：贴合颅面、只露一小帽（原来整块圆盘浮在额头上，又大又黄）
+    part(head, sph(0.19, 14), toon(0xd96f1e), [0.16, 0.4, 0.2], [1.1, 0.55, 0.4]);
+    part(head, sph(0.19, 14), toon(0x221e24), [-0.42, 0.12, 0.16], [0.4, 0.95, 0.9]);
+    part(head, sph(0.12, 12), toon(0xd96f1e), [0.4, -0.06, 0.26], [0.5, 0.9, 0.4]);
+    // 圆润三角耳 + 粉色内耳（耳更大）
     for (var e = -1; e <= 1; e += 2) {
-      var ear = part(head, cyl(0.045, 0.15, 0.3, 12), toon(0xfffaf2),
-        [0.26 * e, 0.44, -0.02], [1, 1, 0.72], [0, 0, e * -0.26]);
+      var ear = part(head, cyl(0.05, 0.17, 0.34, 12), toon(0xfffaf2),
+        [0.27 * e, 0.46, -0.02], [1, 1, 0.72], [0, 0, e * -0.26]);
       outlineOf(ear, 1.07, 0.92);
-      part(head, sph(0.075, 10), soft(0xf5a8bb, 0.9), [0.26 * e, 0.42, 0.06], [1, 1.15, 0.5], [0, 0, e * -0.26]);
+      part(head, sph(0.085, 10), soft(0xf5a8bb, 0.9), [0.27 * e, 0.44, 0.06], [1, 1.15, 0.5], [0, 0, e * -0.26]);
     }
     // 浅色口鼻区
     var muz = part(head, sph(0.19, 12), toon(0xfff2e2), [0, -0.2, 0.34], [1.15, 0.72, 0.8]);
@@ -521,23 +539,23 @@
           [0.4 * s, -0.16 + i * 0.08, 0.28], null, [0, s * 0.5, Math.PI / 2 + i * 0.18]);
       }
     }
-    // 绿眼睛（三花猫专属）
-    rig.parts.eyes = makeEyes(head, 0.13, 0.215, 0.06, 0.36, { rotY: 0.16, pupil: 0x2e7d32 });
+    // 绿眼睛：绿虹膜 + 黑瞳孔（原来整个眼球是实心绿球）
+    rig.parts.eyes = makeEyes(head, 0.15, 0.215, 0.06, 0.36, { rotY: 0.16, iris: 0x2e8b3a });
     blush(head, 0.08, 0.31, -0.13, 0.3, 0xf09aa8);
   }
-
   function headLlama(head, rig) {
-    var R = 0.44;
+    var R = 0.47;
     var skull = part(head, sph(R, 22), toon(0xfffefa), [0, 0.02, 0], [1, 1.0, 1.12]);
     outlineOf(skull, 1.05, 0.92);
     puffs(head, [
       [0, 0.36, -0.06, 0.2], [0.24, 0.28, -0.14, 0.18], [-0.24, 0.28, -0.14, 0.18],
-      [0.37, 0.06, -0.16, 0.18], [-0.37, 0.06, -0.16, 0.18]
+      [0.37, 0.06, -0.16, 0.18], [-0.37, 0.06, -0.16, 0.18],
+      [0.3, -0.2, -0.2, 0.16], [-0.3, -0.2, -0.2, 0.16]
     ], 0xfffefa, 0.92);
-    // 短圆耳（圆头香蕉形）
+    // 短圆耳（圆头香蕉形），更长一点
     for (var e = -1; e <= 1; e += 2) {
       var ear = part(head, sph(0.1, 12), toon(0xfffefa),
-        [0.22 * e, 0.44, -0.04], [1, 1.7, 0.68], [0, 0, e * -0.3]);
+        [0.23 * e, 0.48, -0.04], [1, 2.0, 0.68], [0, 0, e * -0.3]);
       outlineOf(ear, 1.06, 0.92);
       part(ear, sph(0.055, 8), soft(0xf8c4ce, 0.85), [0, 0.03, 0.045], [1, 1.5, 0.5], [0, 0, e * -0.3]);
     }
@@ -545,11 +563,11 @@
     var muz = part(head, sph(0.19, 12), toon(0xefe4d8), [0, -0.24, 0.4], [1, 0.7, 0.85]);
     outlineOf(muz, 1.05, 0.84);
     part(head, sph(0.055, 8), toon(0xd8b8c0), [0, -0.2, 0.5], [1.2, 0.7, 0.6]);
-    // 刘海：额前三绺直刘海（羊驼确认稿特征），盖住额头上沿
-    [[-0.17, 0.44, 0.3], [0, 0.47, 0.32], [0.17, 0.44, 0.3]].forEach(function (p) {
-      outlineOf(part(head, sph(0.1, 10), toon(0xfffefa), [p[0], p[1], p[2]], [1, 1.5, 0.55]), 1.06, 0.92);
+    // 刘海：五绺直刘海盖住额头（原来三绺太窄）
+    [[-0.26, 0.42, 0.3], [-0.13, 0.46, 0.32], [0, 0.48, 0.32], [0.13, 0.46, 0.32], [0.26, 0.42, 0.3]].forEach(function (p) {
+      outlineOf(part(head, sph(0.095, 10), toon(0xfffefa), [p[0], p[1], p[2]], [1, 1.5, 0.55]), 1.06, 0.92);
     });
-    rig.parts.eyes = makeEyes(head, 0.125, 0.2, 0.06, 0.38, { rotY: 0.16 });
+    rig.parts.eyes = makeEyes(head, 0.14, 0.2, 0.06, 0.38, { rotY: 0.16 });
     blush(head, 0.08, 0.3, -0.15, 0.3, 0xf2b0b8);
   }
 
@@ -563,87 +581,88 @@
   function animalChicken() {
     var g = new THREE.Group();
     var rig = newRig(g, 'chicken');
-    rig.parts.legs = [birdLeg(g, -0.16, 0.2, 0.05, 0xf0a03c), birdLeg(g, 0.16, 0.2, 0.05, 0xf0a03c)];
-    var body = part(g, sph(0.5, 22), toon(0xfffbf2), [0, 0.66, -0.02], [0.96, 0.98, 1.06]);
+    rig.parts.legs = [birdLeg(g, -0.16, 0.2, 0.055, 0xf59a1a), birdLeg(g, 0.16, 0.2, 0.055, 0xf59a1a)];
+    var body = part(g, sph(0.5, 22), toon(0xfffbf2), [0, 0.7, -0.02], [1.0, 1.0, 1.05]);
     outlineOf(body, 1.04);
     rig.parts.body = body;
-    // 翅膀：幼年短圆贴体，成年沿体侧向后包住躯干
-    rig.parts.wings = birdWings(g, { r: 0.5, y: 0.68, z: -0.04, color: 0xfff1de });
+    // 翅膀：确认稿是橘色翅膀（原来近白色，糊在白身上）
+    rig.parts.wings = birdWings(g, { r: 0.5, y: 0.72, z: -0.04, color: 0xf2a65a });
     // 尾羽：两枚圆润上翘
-    outlineOf(part(g, sph(0.2, 12), toon(0xffe9cc), [0, 0.92, -0.42], [0.8, 1.15, 0.9], [-0.7, 0, 0]), 1.05);
-    rig.parts.tail = part(g, sph(0.17, 12), toon(0xffe9cc), [0, 1.08, -0.52], [0.72, 0.9, 0.8], [-0.9, 0, 0]);
+    outlineOf(part(g, sph(0.2, 12), toon(0xffe9cc), [0, 0.96, -0.42], [0.8, 1.15, 0.9], [-0.7, 0, 0]), 1.05);
+    rig.parts.tail = part(g, sph(0.17, 12), toon(0xffe9cc), [0, 1.12, -0.52], [0.72, 0.9, 0.8], [-0.9, 0, 0]);
     outlineOf(rig.parts.tail, 1.05);
-    attachHead(g, rig, headChicken, 0, 1.08, 0.08);
+    attachHead(g, rig, headChicken, 0, 1.14, 0.08);
     return rig;
   }
-
   function animalDuck() {
     var g = new THREE.Group();
     var rig = newRig(g, 'duck');
-    rig.parts.legs = [birdLeg(g, -0.17, 0.16, 0.055, 0xf0a03c), birdLeg(g, 0.17, 0.16, 0.055, 0xf0a03c)];
-    var body = part(g, sph(0.54, 22), toon(0xfff8e6), [0, 0.6, -0.02], [1.0, 0.94, 1.1]);
+    rig.parts.legs = [birdLeg(g, -0.17, 0.16, 0.06, 0xf59a1a), birdLeg(g, 0.17, 0.16, 0.06, 0xf59a1a)];
+    var body = part(g, sph(0.54, 22), toon(0xfff8e6), [0, 0.64, -0.02], [1.02, 0.96, 1.1]);
     outlineOf(body, 1.04, 0.92);
     rig.parts.body = body;
     // 翅膀：幼年短圆贴体，成年沿体侧向后包住躯干
-    rig.parts.wings = birdWings(g, { r: 0.54, y: 0.62, z: -0.04, color: 0xfff2da });
-    rig.parts.tail = part(g, sph(0.22, 12), toon(0xffeed2), [0, 0.8, -0.5], [0.85, 0.9, 0.95], [-0.55, 0, 0]);
+    rig.parts.wings = birdWings(g, { r: 0.54, y: 0.66, z: -0.04, color: 0xfff2da });
+    rig.parts.tail = part(g, sph(0.22, 12), toon(0xffeed2), [0, 0.84, -0.5], [0.85, 0.9, 0.95], [-0.55, 0, 0]);
     outlineOf(rig.parts.tail, 1.05);
-    attachHead(g, rig, headDuck, 0, 1.0, 0.12);
+    attachHead(g, rig, headDuck, 0, 1.06, 0.12);
     return rig;
   }
-
   function animalCow() {
     var g = new THREE.Group();
     var rig = newRig(g, 'cow');
-    rig.parts.legs = fourLegs(g, 0.38, 0.135, 0xfffcf7, { x: 0.36, z: 0.44, footColor: 0x4a4657 });
-    var body = part(g, sph(0.82, 24), toon(0xfffcf7), [0, 1.0, 0], [0.88, 0.92, 1.2]);
+    // 四脚站立：腿加长加粗，身体离地（原来腿短、身体贴地像个白球）
+    rig.parts.legs = fourLegs(g, 0.55, 0.15, 0xfffcf7, { x: 0.38, z: 0.5, footColor: 0x4a4657 });
+    // 躯干：横向拉长的圆桶身（不再是圆球），头颈前伸、与身体分出剪影
+    var body = part(g, sph(0.82, 24), toon(0xfffcf7), [0, 1.18, 0], [0.92, 0.88, 1.32]);
     outlineOf(body, 1.035);
     rig.parts.body = body;
-    // 黑斑：贴合体表的圆润块（避开头部）
-    [[0.4, 1.24, 0.4, 0.3], [-0.44, 1.06, -0.3, 0.28], [0.22, 1.44, -0.5, 0.24],
-     [-0.2, 0.82, 0.62, 0.22], [0.1, 1.46, 0.46, 0.19]].forEach(function (p) {
-      part(g, sph(p[3], 14), toon(0x39353f), [p[0], p[1], p[2]], [1, 0.8, 1]);
+    // 黑斑：贴合体表的圆润块（避开头部），真黑（0x221e24，浅灰会被色阶洗掉）
+    [[0.42, 1.42, 0.42, 0.36], [-0.46, 1.24, -0.32, 0.32], [0.24, 1.62, -0.52, 0.28],
+     [-0.22, 1.0, 0.66, 0.26], [0.12, 1.64, 0.5, 0.22], [-0.5, 1.5, 0.3, 0.2]].forEach(function (p) {
+      part(g, sph(p[3], 14), toon(0x221e24), [p[0], p[1], p[2]], [1, 0.8, 1]);
     });
     // 短脖
-    part(g, cyl(0.3, 0.4, 0.42, 14), toon(0xfffcf7), [0, 1.4, 0.5], null, [0.45, 0, 0]);
-    // 棕色项圈 + 金色铃铛（确认稿特征）
-    var collar = part(g, torus(0.32, 0.055, Math.PI * 2), toon(0x8d5a2b), [0, 1.44, 0.58], null, [0.5, 0, 0]);
+    part(g, cyl(0.32, 0.42, 0.46, 14), toon(0xfffcf7), [0, 1.56, 0.52], null, [0.45, 0, 0]);
+    // 棕色项圈 + 金色铃铛（确认稿特征，铃铛加大）
+    var collar = part(g, torus(0.34, 0.06, Math.PI * 2), toon(0x8d5a2b), [0, 1.6, 0.6], null, [0.5, 0, 0]);
     outlineOf(collar, 1.1, 0.6);
-    part(g, sph(0.11, 12), toon(0xf0c04a), [0, 1.3, 0.82], [1, 1, 1]);
-    part(g, sph(0.04, 8), toon(0x8d5a2b), [0, 1.22, 0.86], [1, 0.6, 0.6]);
+    part(g, sph(0.14, 12), toon(0xf0c04a), [0, 1.44, 0.86], [1, 1, 1]);
+    part(g, sph(0.05, 8), toon(0x8d5a2b), [0, 1.34, 0.9], [1, 0.6, 0.6]);
     // 乳房
-    part(g, sph(0.24, 14), toon(0xf9bcc8), [0, 0.62, -0.3], [1.1, 0.72, 0.9]);
+    part(g, sph(0.24, 14), toon(0xf9bcc8), [0, 0.72, -0.3], [1.1, 0.72, 0.9]);
     var tail = new THREE.Group();
-    tail.position.set(0, 1.4, -0.98);
+    tail.position.set(0, 1.55, -1.05);
     g.add(tail);
-    part(tail, cyl(0.035, 0.05, 0.5, 8), toon(0xfffcf7), [0, -0.24, 0]);
-    part(tail, sph(0.12, 12), toon(0x39353f), [0, -0.52, 0.03]);
+    part(tail, cyl(0.035, 0.05, 0.55, 8), toon(0xfffcf7), [0, -0.26, 0]);
+    part(tail, sph(0.13, 12), toon(0x221e24), [0, -0.56, 0.03]);
     rig.parts.tail = tail;
-    attachHead(g, rig, headCow, 0, 1.62, 0.8);
+    attachHead(g, rig, headCow, 0, 1.92, 0.98);
     return rig;
   }
-
   function animalSheep() {
     var g = new THREE.Group();
     var rig = newRig(g, 'sheep');
-    rig.parts.legs = fourLegs(g, 0.32, 0.105, 0xe8d8c4, { x: 0.32, z: 0.42, footColor: 0xd6c3ab });
-    var body = part(g, sph(0.66, 22), toon(0xfffaf0), [0, 0.8, 0], [0.9, 0.86, 1.06]);
+    rig.parts.legs = fourLegs(g, 0.26, 0.105, 0xe8d8c4, { x: 0.32, z: 0.42, footColor: 0xd6c3ab });
+    var body = part(g, sph(0.62, 22), toon(0xfffaf0), [0, 0.78, 0], [0.9, 0.86, 1.06]);
     outlineOf(body, 1.035, 0.9);
     rig.parts.body = body;
-    // 羊毛团（固定分布）
-    [[0, 1.3, 0.1, 0.34], [0.38, 1.16, 0.26, 0.28], [-0.38, 1.16, 0.26, 0.28],
-     [0.5, 1.06, -0.3, 0.29], [-0.5, 1.06, -0.3, 0.29], [0, 1.26, -0.54, 0.3],
-     [0.44, 0.84, 0.54, 0.25], [-0.44, 0.84, 0.54, 0.25], [0, 0.66, 0.7, 0.24],
-     [0.56, 0.8, -0.1, 0.24], [-0.56, 0.8, -0.1, 0.24]].forEach(function (p) {
+    // 羊毛团：两层共 20 团，整个身体就是毛球（确认稿：全身毛茸茸）
+    [[0, 1.28, 0.1, 0.34], [0.38, 1.14, 0.26, 0.28], [-0.38, 1.14, 0.26, 0.28],
+     [0.5, 1.04, -0.3, 0.29], [-0.5, 1.04, -0.3, 0.29], [0, 1.24, -0.54, 0.3],
+     [0.44, 0.82, 0.54, 0.25], [-0.44, 0.82, 0.54, 0.25], [0, 0.64, 0.7, 0.24],
+     [0.56, 0.78, -0.1, 0.24], [-0.56, 0.78, -0.1, 0.24],
+     [0.2, 1.38, -0.2, 0.26], [-0.2, 1.38, -0.2, 0.26], [0.58, 0.98, 0.2, 0.24],
+     [-0.58, 0.98, 0.2, 0.24], [0, 1.0, -0.72, 0.26], [0.3, 0.66, -0.5, 0.22],
+     [-0.3, 0.66, -0.5, 0.22], [0.62, 0.9, -0.45, 0.22], [-0.62, 0.9, -0.45, 0.22]].forEach(function (p) {
       // 白色羊毛团补描边：剪影由羊毛团构成，不描边会和浅底糊在一起
       outlineOf(part(g, sph(p[3], 16), toon(0xfffdf6), [p[0], p[1], p[2]]), 1.05, 0.58);
     });
-    rig.parts.tail = part(g, sph(0.2, 12), toon(0xfffdf6), [0, 0.96, -0.86]);
+    rig.parts.tail = part(g, sph(0.2, 12), toon(0xfffdf6), [0, 0.94, -0.86]);
     outlineOf(rig.parts.tail, 1.05, 0.58);
-    attachHead(g, rig, headSheep, 0, 1.16, 0.5);
+    attachHead(g, rig, headSheep, 0, 1.22, 0.5);
     return rig;
   }
-
   function animalRabbit() {
     var g = new THREE.Group();
     var rig = newRig(g, 'anjela');
@@ -651,17 +670,20 @@
     rig.parts.legs = fourLegs(g, 0.24, 0.095, 0xf1e4e8, { x: 0.24, z: baby ? 0.3 : 0.4, footColor: 0xe8d6dc });
     // 短毛体型：与 cat / dog 同一套做法（单个平滑躯干，不再用毛团堆剪影）；成年略前后拉长，幼年圆短
     var body = part(g, sph(0.5, 24), toon(0xfffdfa), [0, 0.6, 0],
-      baby ? [0.96, 0.92, 1.06] : [0.84, 0.84, 1.26]);
+      baby ? [0.96, 0.92, 1.06] : [0.88, 0.88, 1.15]);
     outlineOf(body, 1.035, 0.9);
     rig.parts.body = body;
-    // 安哥拉兔绒毛：身体周围一圈毛茸茸的绒团（毛量明显多，蓬松剪影），不是光滑短毛
+    // 安哥拉兔绒毛：身体周围 18 团毛茸茸的绒团（毛量明显多，蓬松剪影），不是光滑短毛
     var fluffMat = toon(0xfffdfa);
     var fluffs = [
       [0.38, 0.62, 0.1, 0.2], [-0.38, 0.62, 0.1, 0.2],
       [0.34, 0.8, -0.28, 0.19], [-0.34, 0.8, -0.28, 0.19],
       [0.3, 0.5, 0.38, 0.18], [-0.3, 0.5, 0.38, 0.18],
       [0, 0.98, -0.12, 0.21], [0, 0.72, -0.58, 0.2],
-      [0.32, 0.98, 0.3, 0.15], [-0.32, 0.98, 0.3, 0.15]
+      [0.32, 0.98, 0.3, 0.15], [-0.32, 0.98, 0.3, 0.15],
+      [0.42, 0.78, 0.3, 0.17], [-0.42, 0.78, 0.3, 0.17],
+      [0, 0.86, 0.42, 0.18], [0.2, 0.5, -0.45, 0.18], [-0.2, 0.5, -0.45, 0.18],
+      [0.44, 0.66, -0.3, 0.17], [-0.44, 0.66, -0.3, 0.17], [0, 1.02, 0.12, 0.16]
     ];
     fluffs.forEach(function (f) {
       var puff = part(g, sph(f[3], 12), fluffMat, [f[0], f[1], f[2]]);
@@ -669,94 +691,103 @@
     });
     var chest = part(g, sph(0.24, 14), toon(0xffeef4), [0, 0.54, 0.38], [0.86, 0.98, 0.68]);
     outlineOf(chest, 1.05, 0.86);
+    // 前爪：两只小圆爪搭在身前
+    part(g, sph(0.11, 10), toon(0xfffdfa), [-0.16, 0.34, 0.44], [1, 1.2, 0.8]);
+    part(g, sph(0.11, 10), toon(0xfffdfa), [0.16, 0.34, 0.44], [1, 1.2, 0.8]);
     // 圆棉尾（毛茸茸的大棉球）
-    rig.parts.tail = part(g, sph(0.24, 12), toon(0xffffff), [0, 0.62, -0.56]);
+    rig.parts.tail = part(g, sph(0.28, 12), toon(0xffffff), [0, 0.62, -0.56]);
     outlineOf(rig.parts.tail, 1.06, 0.58);
-    attachHead(g, rig, headRabbit, 0, 1.06, 0.16);
+    attachHead(g, rig, headRabbit, 0, 1.12, 0.16);
     return rig;
   }
-
   function animalHorse() {
     var g = new THREE.Group();
     var rig = newRig(g, 'horse');
     var baby = isBaby();
-    rig.parts.legs = fourLegs(g, 0.44, 0.115, 0xb5763c, { x: 0.34, z: baby ? 0.42 : 0.56, footColor: 0x6b4522 });
-    // 成年躯干不再圆鼓：前后拉长、上下略压扁（马身修长）；幼年保持圆滚滚
-    var body = part(g, sph(0.78, 24), toon(0xb5763c), [0, 1.18, 0],
-      baby ? [0.86, 0.9, 1.06] : [0.76, 0.86, 1.5]);
+    rig.parts.legs = fourLegs(g, 0.6, 0.13, 0xa86a32, { x: 0.36, z: baby ? 0.44 : 0.6, footColor: 0x6b4522 });
+    // 成年躯干：前后拉长、上下略压扁（马身修长）；幼年保持圆滚滚
+    var body = part(g, sph(0.78, 24), toon(0xa86a32), [0, 1.32, 0],
+      baby ? [0.86, 0.9, 1.06] : [0.8, 0.88, 1.6]);
     outlineOf(body, 1.035, 0.52);
     rig.parts.body = body;
-    var neckZ = baby ? 0.5 : 0.66;
-    // 短脖
-    part(g, cyl(0.29, 0.4, 0.72, 14), toon(0xb5763c), [0, 1.74, neckZ], null, [0.42, 0, 0]);
-    // 鬃毛：沿脖根的圆润块面
-    [[0, 2.0, 0.34, 0.24], [0, 1.92, 0.12, 0.23], [0, 1.76, -0.06, 0.22],
-     [0, 1.56, -0.12, 0.21], [0, 1.38, -0.12, 0.2]].forEach(function (p) {
-      part(g, sph(p[3], 12), toon(0x5b3a22), [p[0], p[1], p[2] + (baby ? 0 : 0.06)], [0.78, 0.66, 1.45]);
+    var neckZ = baby ? 0.5 : 0.68;
+    // 长脖（加长）
+    part(g, cyl(0.3, 0.42, 0.9, 14), toon(0xa86a32), [0, 1.92, neckZ], null, [0.42, 0, 0]);
+    // 鬃毛：沿脖根的长鬃，7 块由上到下渐小 + 两侧垂鬃
+    [[0, 2.18, 0.36, 0.25], [0, 2.1, 0.14, 0.24], [0, 1.94, -0.04, 0.23],
+     [0, 1.74, -0.1, 0.22], [0, 1.54, -0.12, 0.21], [0, 1.36, -0.12, 0.19],
+     [0.3, 1.9, 0.3, 0.16], [-0.3, 1.9, 0.3, 0.16]].forEach(function (p) {
+      part(g, sph(p[3], 12), toon(0x4a2e18), [p[0], p[1], p[2] + (baby ? 0 : 0.06)], [0.78, 0.66, 1.45]);
     });
-    // 尾巴
+    // 尾巴：更长更飘
     var tail = new THREE.Group();
-    tail.position.set(0, 1.5, baby ? -0.62 : -1.0);
+    tail.position.set(0, 1.62, baby ? -0.62 : -1.08);
     g.add(tail);
-    part(tail, cyl(0.05, 0.07, 0.62, 8), toon(0xa8683a), [0, -0.3, -0.08], null, [-0.25, 0, 0]);
-    part(tail, sph(0.14, 12), toon(0x5b3a22), [0, -0.6, -0.22], [0.85, 1.35, 0.85], [0, 0, -0.2]);
+    part(tail, cyl(0.05, 0.07, 0.7, 8), toon(0xa8683a), [0, -0.32, -0.08], null, [-0.25, 0, 0]);
+    part(tail, sph(0.15, 12), toon(0x4a2e18), [0, -0.66, -0.24], [0.85, 1.5, 0.85], [0, 0, -0.2]);
+    part(tail, sph(0.12, 12), toon(0x4a2e18), [0, -0.9, -0.36], [0.8, 1.3, 0.8], [0, 0, -0.3]);
     rig.parts.tail = tail;
-    attachHead(g, rig, headHorse, 0, 2.12, baby ? 0.62 : 0.82);
+    attachHead(g, rig, headHorse, 0, 2.42, baby ? 0.62 : 0.9);
     return rig;
   }
-
   function animalDog() {
     var g = new THREE.Group();
     var rig = newRig(g, 'dog');
-    rig.parts.legs = fourLegs(g, 0.26, 0.095, 0xf2c877, { x: 0.28, z: 0.38, footColor: 0xf7dcae });
-    var body = part(g, sph(0.52, 22), toon(0xf2c877), [0, 0.68, 0], [0.88, 0.84, 1.28]);
+    rig.parts.legs = fourLegs(g, 0.3, 0.095, 0xeeb95e, { x: 0.28, z: 0.38, footColor: 0xf7dcae });
+    var body = part(g, sph(0.52, 22), toon(0xeeb95e), [0, 0.72, 0], [0.9, 0.86, 1.32]);
     outlineOf(body, 1.035, 0.58);
     rig.parts.body = body;
     // 胸前浅色
-    outlineOf(part(g, sph(0.26, 14), toon(0xfff4e2), [0, 0.6, 0.42], [0.86, 1.0, 0.7]), 1.05, 0.8);
-    // 上翘卷尾（圆润）
+    outlineOf(part(g, sph(0.26, 14), toon(0xfff4e2), [0, 0.64, 0.42], [0.86, 1.0, 0.7]), 1.05, 0.8);
+    // 胸前绒毛：三团浅色毛
+    [[-0.14, 0.86, 0.44, 0.13], [0.14, 0.86, 0.44, 0.13], [0, 0.72, 0.5, 0.14]].forEach(function (p) {
+      outlineOf(part(g, sph(p[3], 12), toon(0xfff4e2), [p[0], p[1], p[2]]), 1.05, 0.86);
+    });
+    // 上翘卷尾（圆润，尾尖浅色）
     var tail = new THREE.Group();
-    tail.position.set(0, 0.92, -0.6);
+    tail.position.set(0, 0.98, -0.62);
     g.add(tail);
-    part(tail, cyl(0.05, 0.06, 0.36, 8), toon(0xf2c877), [0, 0.1, -0.05], null, [-0.55, 0, 0]);
-    part(tail, sph(0.14, 12), toon(0xe6b45f), [0, 0.3, -0.16], [0.9, 1.0, 1.1]);
+    part(tail, cyl(0.055, 0.065, 0.4, 8), toon(0xeeb95e), [0, 0.12, -0.05], null, [-0.55, 0, 0]);
+    part(tail, sph(0.13, 12), toon(0xe0aa4e), [0, 0.3, -0.16], [0.9, 1.0, 1.1]);
+    part(tail, sph(0.09, 12), toon(0xfff4e2), [0, 0.38, -0.21], [0.9, 1.0, 1.1]);
     rig.parts.tail = tail;
-    attachHead(g, rig, headDog, 0, 1.04, 0.34);
+    attachHead(g, rig, headDog, 0, 1.1, 0.34);
     return rig;
   }
-
   function animalCat() {
     var g = new THREE.Group();
     var rig = newRig(g, 'cat');
     var baby = isBaby();
-    rig.parts.legs = fourLegs(g, 0.24, 0.09, 0xfffaf2, { x: 0.26, z: baby ? 0.32 : 0.42, footColor: 0xf2e2d2 });
+    rig.parts.legs = fourLegs(g, 0.28, 0.09, 0xfffaf2, { x: 0.26, z: baby ? 0.32 : 0.42, footColor: 0xf2e2d2 });
     // 三花猫体态修长（前后拉长、上下收窄）；幼年保留圆胖；白底
-    var body = part(g, sph(0.5, 22), toon(0xfffaf2), [0, 0.64, 0],
-      baby ? [0.9, 0.86, 1.1] : [0.78, 0.78, 1.42]);
+    var body = part(g, sph(0.5, 22), toon(0xfffaf2), [0, 0.66, 0],
+      baby ? [0.9, 0.86, 1.1] : [0.82, 0.8, 1.45]);
     outlineOf(body, 1.035, 0.92);
     rig.parts.body = body;
-    // 身上橘斑 + 黑斑（与头部花色呼应）
-    part(g, sph(0.26, 14), toon(0xe8973c), [0.3, 0.86, -0.28], [1.1, 0.7, 1]);
-    part(g, sph(0.22, 14), toon(0x39353f), [-0.32, 0.78, 0.3], [1, 0.72, 1]);
-    part(g, sph(0.16, 12), toon(0xe8973c), [-0.1, 0.92, -0.62], [1, 0.7, 1]);
+    // 身上橘斑 + 黑斑（与头部花色呼应，真橘真黑）
+    part(g, sph(0.19, 14), toon(0xd96f1e), [0.26, 0.86, -0.24], [1.1, 0.6, 0.9]);
+    part(g, sph(0.17, 14), toon(0x221e24), [-0.27, 0.78, 0.26], [1, 0.6, 0.9]);
+    part(g, sph(0.13, 12), toon(0xd96f1e), [-0.08, 0.92, -0.52], [1, 0.6, 0.9]);
+    part(g, sph(0.14, 12), toon(0x221e24), [0.29, 0.7, 0.44], [0.9, 0.6, 0.9]);
     // 胸前浅色
-    part(g, sph(0.24, 14), toon(0xffe9d6), [0, 0.58, 0.36], [0.88, 0.95, 0.68]);
-    // 竖起的卷尾：白底 + 橘色尾尖
+    part(g, sph(0.24, 14), toon(0xffe9d6), [0, 0.6, 0.36], [0.88, 0.95, 0.68]);
+    // 竖起的卷尾：白底 + 橘环 + 黑尖（确认稿：橘黑相间的条纹尾）
     var tail = new THREE.Group();
-    tail.position.set(0, 0.86, -0.52);
+    tail.position.set(0, 0.88, -0.55);
     g.add(tail);
     part(tail, cyl(0.055, 0.065, 0.5, 8), toon(0xfffaf2), [0, 0.16, -0.04], null, [-0.35, 0, 0]);
-    part(tail, sph(0.11, 12), toon(0xe8973c), [0, 0.46, -0.16], [0.95, 1.15, 0.95]);
+    part(tail, sph(0.09, 10), toon(0xd96f1e), [0, 0.32, -0.1], [1.1, 0.9, 1.1]);
+    part(tail, sph(0.1, 10), toon(0x221e24), [0, 0.44, -0.15], [1, 1, 1]);
+    part(tail, sph(0.09, 10), toon(0xfffaf2), [0, 0.54, -0.2], [0.95, 1, 0.95]);
     rig.parts.tail = tail;
     // 成年补颈段：头抬高并前移，露出可见的颈段（不再头身直接相接）；幼年保持「没脖子」的圆幼态
     if (!baby) {
       var neck = part(g, cyl(0.17, 0.24, 0.55, 12), toon(0xfffaf2), [0, 1.1, 0.42], null, [0.42, 0, 0]);
       outlineOf(neck, 1.05, 0.92);
     }
-    attachHead(g, rig, headCat, 0, baby ? 1.0 : 1.45, baby ? 0.28 : 0.5);
+    attachHead(g, rig, headCat, 0, baby ? 1.0 : 1.52, baby ? 0.28 : 0.5);
     return rig;
   }
-
   function animalLlama() {
     var g = new THREE.Group();
     var rig = newRig(g, 'llama');
@@ -765,21 +796,29 @@
     var body = part(g, sph(0.66, 22), toon(wool), [0, 0.94, 0], [0.88, 0.9, 1.12]);
     outlineOf(body, 1.035, 0.92);
     rig.parts.body = body;
-    // 蓬松毛团
+    // 蓬松毛团（14 团）
     [[0, 1.4, 0.16, 0.3], [0.42, 1.28, 0.24, 0.26], [-0.42, 1.28, 0.24, 0.26],
      [0.5, 1.12, -0.3, 0.26], [-0.5, 1.12, -0.3, 0.26], [0, 1.34, -0.5, 0.27],
-     [0.44, 0.9, 0.5, 0.24], [-0.44, 0.9, 0.5, 0.24], [0, 0.72, 0.66, 0.23]].forEach(function (p) {
+     [0.44, 0.9, 0.5, 0.24], [-0.44, 0.9, 0.5, 0.24], [0, 0.72, 0.66, 0.23],
+     [0.2, 1.5, -0.3, 0.24], [-0.2, 1.5, -0.3, 0.24], [0.56, 1.0, 0.1, 0.22],
+     [-0.56, 1.0, 0.1, 0.22], [0, 1.1, -0.68, 0.24]].forEach(function (p) {
       outlineOf(part(g, sph(p[3], 16), toon(wool), [p[0], p[1], p[2]]), 1.05, 0.58);
     });
     // 长脖子（圆润柱体 + 脖根绒毛）：成年再拉长一档，幼年保留短脖的幼态
     var baby = isBaby();
-    var neckLen = baby ? 0.86 : 1.2;
-    var neckY = baby ? 1.68 : 1.88;
+    var neckLen = baby ? 0.86 : 1.35;
+    var neckY = baby ? 1.68 : 1.98;
     outlineOf(part(g, cyl(0.2, 0.27, neckLen, 14), toon(wool), [0, neckY, 0.38], null, [0.3, 0, 0]), 1.05, 0.58);
     outlineOf(part(g, sph(0.25, 14), toon(wool), [0, baby ? 1.42 : 1.5, 0.34], [1.1, 0.85, 1.0]), 1.05, 0.58);
+    // 脖子绒毛：沿脖颈两侧 8 团（确认稿：脖子也是毛茸茸的，不是光杆）
+    [[-0.22, 2.3, 0.5, 0.16], [0.22, 2.3, 0.5, 0.16], [-0.24, 2.0, 0.44, 0.17],
+     [0.24, 2.0, 0.44, 0.17], [-0.24, 1.7, 0.38, 0.17], [0.24, 1.7, 0.38, 0.17],
+     [0, 2.42, 0.42, 0.15], [0, 1.56, 0.32, 0.16]].forEach(function (p) {
+      outlineOf(part(g, sph(p[3], 12), toon(wool), [p[0], p[1], p[2]]), 1.05, 0.58);
+    });
     rig.parts.tail = part(g, sph(0.2, 12), toon(wool), [0, 1.04, -0.76]);
     outlineOf(rig.parts.tail, 1.05, 0.58);
-    attachHead(g, rig, headLlama, 0, baby ? 2.14 : 2.44, baby ? 0.58 : 0.66);
+    attachHead(g, rig, headLlama, 0, baby ? 2.14 : 2.62, baby ? 0.58 : 0.66);
     return rig;
   }
 
@@ -1410,10 +1449,9 @@
     HEART_KEYS.forEach(function (k) {
       list.push({ kind: 'tool', key: 'heart_' + k, path: 'assets/icons/heart_' + k + '.png', size: 256, fit: 1.6, yaw: 0.25, cam: [0.1, 0.3, 1] });
     });
-    // 底部导航图标
-    NAV_KEYS.forEach(function (k) {
-      list.push({ kind: 'tool', key: 'nav_' + k, path: 'assets/icons/nav_' + k + '.png', size: 256, fit: 1.7, yaw: 0.36 });
-    });
+    // 底部导航图标：不走生成器（上轮教训：生成器产出的简版图标是倒退）。
+    // 9 张图标手工从确认稿 ui-icons 图裁切（tools/crop-nav-icons.py），
+    // manifest 里的 nav_* 条目由渲染脚本补写，assetList 不再产出 nav_*。
     // 素材总览图
     list.push({ kind: 'sheet', path: 'assets/overview/sheet.png', w: 2300, h: 1500 });
     // 三视图总览：由页面把上面已渲染的 54 张三视图拼成一张「每列一只动物」的对比大图

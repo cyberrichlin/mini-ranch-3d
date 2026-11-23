@@ -187,9 +187,9 @@ p { margin: 0; }
   background: radial-gradient(120% 90% at 50% 42%, rgba(255, 255, 255, .06) 0%, rgba(40, 34, 20, .05) 62%, rgba(28, 24, 14, .3) 100%);
 }
 .scene-badge {
-  position: absolute; top: 10px; left: 12px;
-  padding: 4px 11px;
-  font-size: 11px;
+  position: absolute; top: 4px; left: 10px;
+  padding: 2px 9px;
+  font-size: 10px;   /* 第三轮收小、上移：放牧动物在画面顶部活动，别挡住它们 */
   border-radius: 999px;
   background: rgba(255, 253, 247, .78);
   color: var(--text-soft);
@@ -352,11 +352,11 @@ button.mini {
   position: relative;
   aspect-ratio: 1 / 1;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: 14px;
   background: linear-gradient(180deg, #c9b18c, #b2966f);
-  border: 1px solid rgba(90, 72, 44, .32);
-  /* Q 版黏土砖：上沿亮、下沿暗、带一点立体厚度 */
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .32), inset 0 -3px 0 rgba(70, 56, 34, .22), 0 2px 4px rgba(60, 46, 26, .15);
+  border: 2px solid rgba(90, 72, 44, .45);
+  /* Q 版黏土砖：圆角厚边、上沿亮、下沿暗、带立体厚度（第三轮加厚） */
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, .38), inset 0 -4px 0 rgba(70, 56, 34, .28), 0 3px 7px rgba(60, 46, 26, .22);
   transition: transform .12s ease, box-shadow .12s ease;
   overflow: hidden;
 }
@@ -369,6 +369,9 @@ button.mini {
     radial-gradient(circle at 85% 25%, rgba(74, 139, 44, .85) 0 4px, transparent 5px),
     radial-gradient(circle at 12% 68%, rgba(74, 139, 44, .85) 0 4px, transparent 5px),
     radial-gradient(circle at 55% 45%, rgba(110, 130, 70, .8) 0 3px, transparent 4px),
+    radial-gradient(circle at 32% 58%, rgba(74, 139, 44, .9) 0 4px, transparent 5px),
+    radial-gradient(circle at 78% 42%, rgba(90, 150, 60, .85) 0 4px, transparent 5px),
+    radial-gradient(circle at 38% 12%, rgba(169, 162, 154, .9) 0 2.5px, transparent 3.5px),
     radial-gradient(circle at 85% 70%, rgba(169, 162, 154, .95) 0 3px, transparent 4px),
     radial-gradient(circle at 12% 20%, rgba(169, 162, 154, .85) 0 2.5px, transparent 3.5px),
     linear-gradient(180deg, #9aa061, #7d8148);
@@ -376,7 +379,7 @@ button.mini {
 /* 已耕：浅黄褐 + 一道道垄沟 */
 .plot.plowed {
   background:
-    repeating-linear-gradient(180deg, rgba(120, 94, 58, .32) 0 3px, transparent 3px 9px),
+    repeating-linear-gradient(180deg, rgba(120, 94, 58, .42) 0 3px, transparent 3px 9px),
     linear-gradient(180deg, #c2a273, #ac8a5c);
 }
 /* 干裂（已耕、无作物、水分 0）：苍白底色 + 深色裂纹（新增视觉状态，玩法逻辑不变） */
@@ -390,25 +393,27 @@ button.mini {
 .mine-hero { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-s); margin-bottom: 12px; position: relative; }
 .mine-hero svg { display: block; width: 100%; height: 300px; }
 @media (max-width: 767px) { .mine-hero svg { height: 190px; } }
-.mine-hero-cap { position: absolute; left: 10px; bottom: 8px; padding: 4px 10px; border-radius: 999px; background: rgba(255, 253, 246, .92); font-size: 12px; color: #6b543a; box-shadow: 0 1px 4px rgba(60, 46, 26, .25); }
+.mine-hero-cap { position: absolute; left: 10px; top: 8px; padding: 4px 10px; border-radius: 999px; background: rgba(255, 253, 246, .92); font-size: 12px; color: #6b543a; box-shadow: 0 1px 4px rgba(60, 46, 26, .25); }
 /* 浇过水：浅奶茶色暖棕（不要深巧克力色）+ 水珠点 */
 .plot.wet {
   background:
     radial-gradient(circle at 25% 30%, rgba(255, 255, 255, .3) 0 2px, transparent 3px),
     radial-gradient(circle at 70% 65%, rgba(255, 255, 255, .24) 0 2.5px, transparent 3.5px),
     radial-gradient(circle at 55% 20%, rgba(255, 255, 255, .22) 0 1.8px, transparent 2.8px),
-    linear-gradient(180deg, #a97e56, #96683f);
+    linear-gradient(180deg, #c09a72, #a87f58);
 }
 .plot .pi { font-size: 19px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .18)); }
 /* 土里的作物图标：幼苗 / 生长 / 开花 / 结果各阶段按作物品种绘制，尺寸统一由样式控制 */
 .plot .pi .ic3d {
-  width: 56px;
-  height: 56px;
+  width: 62px;
+  height: 62px;
   object-fit: contain;
   display: block;
   margin: 0 auto;
+  transform: translateY(-2px);
+  filter: drop-shadow(0 3px 2px rgba(60, 46, 26, .25));
 }
-.plot .pl { font-size: 10px; color: #fff9ec; text-shadow: 0 1px 2px rgba(60, 46, 26, .6); }
+.plot .pl { font-size: 10px; color: #fff9ec; text-shadow: 0 1px 2px rgba(60, 46, 26, .6); white-space: nowrap; }   /* 第三轮：生长 25% 别换行顶出底边 */
 .plot .pidx { position: absolute; top: 2px; left: 4px; font-size: 9px; color: rgba(255, 249, 236, .7); }
 .plot.ready {
   background: linear-gradient(180deg, #ffdf9a, #f3bd55);
@@ -758,7 +763,8 @@ button.mini {
   #view-host { padding: 10px; }
   .plot { border-radius: 10px; }
   .plot .pi { font-size: 16px; }
-  .plot .pi .ic3d { width: 46px; height: 46px; }
+  .plot .pi .ic3d { width: 38px; height: 38px; }   /* 第三轮修正：390 宽地块约 52px，52px 图标 + 标签会把标签顶出底边 */
+  .plot .pl { font-size: 9px; }
   .plot .pl { font-size: 9px; }
   .cal-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .card-h { padding: 10px 12px; }
@@ -833,7 +839,7 @@ button.mini {
   .strip { padding: 8px 12px 11px; font-size: 13px; }
   .strip .kv-inline b { font-size: 13.5px; }
   .plot .pi { font-size: 17px; }
-  .plot .pi .ic3d { width: 42px; height: 42px; }
+  .plot .pi .ic3d { width: 34px; height: 34px; }
   .plot .pl { font-size: 10px; }
   .plot .pidx { font-size: 10px; }
   .toast { font-size: 13px; padding: 9px 14px; }
