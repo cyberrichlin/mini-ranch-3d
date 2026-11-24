@@ -204,9 +204,18 @@
     };
   }
 
+  /* 第四轮：启动前先预加载 GLB 模型（最多等 9 秒；超时 / 失败都照常进游戏，
+     动物自动回退代码拼模型，绝不卡在加载屏） */
+  function bootWithGLB() {
+    var p = (window.Models && typeof window.Models.preloadGLB === 'function')
+      ? window.Models.preloadGLB() : Promise.resolve();
+    var timeout = new Promise(function (res) { setTimeout(res, 9000); });
+    Promise.race([p, timeout]).then(function () { boot(); });
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
+    document.addEventListener('DOMContentLoaded', bootWithGLB);
   } else {
-    boot();
+    bootWithGLB();
   }
 })();

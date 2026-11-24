@@ -51,7 +51,7 @@
 
   function gradientMap() {
     if (!RAMP.scene) {
-      RAMP.scene = makeRamp([70, 150, 210, 255]);
+      RAMP.scene = makeRamp([90, 175, 255]);   // 第四轮：三档明暗（卡通配方）
       RAMP.icon = makeRamp([170, 208, 238, 255]);
     }
     return RAMP.scene;
@@ -1371,7 +1371,240 @@
     outlineOf(tuft2, 1.07, 0.9);
   }
 
+
+  /* ============================================================
+   * 第四轮：GLB 真模型文件（替换代码拼动物）
+   * 来源（全部免费可商用，已逐个渲染看图确认是 Q 萌低多边形风）：
+   *   牛 / 绵羊 / 马 / 羊驼：Quaternius 农场 & UAA 系列，CC0 1.0，
+   *     经 Poly Pizza（static.poly.pizza）下载，见各条 via。
+   *   鸡 / 狗 / 鸭 / 松鼠：Gobkit 免费模型库，CC0 1.0，
+   *     https://gobkit.com/api/free（API 明示 CC0）。
+   * 没找到合适 GLB 的保留代码拼模型：安哥拉兔（白毛四足；
+   *   Quaternius 兔是双足拟人拿胡萝卜、Gobkit 兔是棕色野兔）、
+   *   三花猫（Quaternius 猫是灰色方块、卡通猫只有头、
+   *   Kenney 猫缺 colormap 贴图无法用）。
+   * 加载失败 / 模型缺失时自动回退代码拼模型，绝不白屏。
+   * height：该模型在 scale=1 时的目标包围盒高度（米制单位），
+   *   与原代码拼模型实测高度一致，保证现有 scale / 爱心高度不变。
+   * head：头像渲染取的头部高度带（包围盒高度的分数区间）。
+   * ============================================================ */
+  var GLB_DEFS = {
+    cow:      { file: 'assets/models/cow.glb',      height: 2.66, head: [0.55, 1.00], src: 'Quaternius 低多边形农场牛（黑白斑+粉鼻）', lic: 'CC0 1.0', via: 'Poly Pizza m/5XSc2Fka3F' },
+    sheep:    { file: 'assets/models/sheep.glb',    height: 2.19, head: [0.30, 0.85], headCam: [0.35, 0.2, 1], src: 'Quaternius 低多边形农场绵羊（白毛黑脸）', lic: 'CC0 1.0', via: 'Poly Pizza m/C39AUXUUes' },
+    chicken:  { file: 'assets/models/chicken.glb',  height: 1.81, head: [0.30, 1.00], src: 'Gobkit BrahmaChicken（白毛红冠大眼）', lic: 'CC0 1.0', via: 'gobkit.com/freebies/animal009/BrahmaChicken.glb' },
+    horse:    { file: 'assets/models/horse.glb',    height: 3.16, head: [0.60, 1.00], src: 'Quaternius UAA 马（棕马黑鬃）', lic: 'CC0 1.0', via: 'Poly Pizza m/qvTrSG9pZF' },
+    dog:      { file: 'assets/models/dog.glb',      height: 1.55, head: [0.45, 1.00], src: 'Gobkit Corgi（橘白大头柯基）', lic: 'CC0 1.0', via: 'gobkit.com/freebies/animal/Corgi.glb' },
+    duck:     { file: 'assets/models/duck.glb',     height: 1.50, head: [0.40, 1.00], src: 'Gobkit Duck（黄绿扁嘴鸭）', lic: 'CC0 1.0', via: 'gobkit.com/freebies/animal/Duck.glb' },
+    llama:    { file: 'assets/models/llama.glb',    height: 3.30, head: [0.62, 1.00], src: 'Quaternius UAA 羊驼（棕色长脖）', lic: 'CC0 1.0', via: 'Poly Pizza m/bCVFD48i2l' },
+    squirrel: { file: 'assets/models/squirrel.glb', height: 1.60, head: [0.40, 1.00], src: 'Gobkit Squirrel（橘色大尾巴松鼠）', lic: 'CC0 1.0', via: 'gobkit.com/freebies/animal006/Squirrel.glb' }
+  };
+  var glbCache = {};   // type -> { ok, scene, clips, error }
+  var glbPromise = null;
+  /** GLB 相对路径的基准：从 models.js 自身的 <script src> 推导，
+   *  游戏页（js/models.js）与离屏渲染页（../js/models.js）都能找对 assets/。 */
+  var GLB_BASE = (function () {
+    try {
+      var scripts = document.getElementsByTagName('script');
+      for (var i = scripts.length - 1; i >= 0; i--) {
+        var src = scripts[i].getAttribute('src') || '';
+        if (/models\.js(\?|$)/.test(src)) {
+          var m = src.match(/^(.*)js\/models\.js(\?.*)?$/);
+          return m ? m[1] : '';   // 裸 models.js（无 js/ 前缀）也返回 ''，别把文件名当目录
+        }
+      }
+    } catch (e) {}
+    return '';
+  })();
+
+  /** GLB 材质转卡通：MeshStandardMaterial -> MeshToonMaterial（同色阶），
+   *  保留原贴图 / 顶点色 / 透明度；注册进 toonMats，随 setShading 切换色阶。 */
+  function toonifyGLB(root) {
+    root.traverse(function (o) {
+      if (!o.isMesh) return;
+      var mats = Array.isArray(o.material) ? o.material : [o.material];
+      var out = mats.map(function (old) {
+        if (!old) return old;
+        if (old.isMeshToonMaterial) return old;
+        var hasVC = !!(o.geometry && o.geometry.attributes && o.geometry.attributes.color);
+        var m = new THREE.MeshToonMaterial({
+          color: old.color ? old.color.clone() : new THREE.Color(0xffffff),
+          map: old.map || null,
+          vertexColors: hasVC,
+          transparent: !!old.transparent,
+          opacity: (old.opacity === undefined ? 1 : old.opacity),
+          side: old.side || THREE.FrontSide,
+          skinning: !!old.skinning   // GLTFLoader 给蒙皮网格的原材质置了 skinning=true；换材质必须带上，否则骨骼动画不生效（只剩绑定姿势平移）
+        });
+        m.gradientMap = gradientMap();
+        toonMats.push(m);
+        return m;
+      });
+      o.material = Array.isArray(o.material) ? out : out[0];
+      o.castShadow = true;
+    });
+  }
+
+  /** 动画名归一化：去掉 Armature| / AnimalArmature| / CharacterArmature| 前缀（有的模型套了两三层）。 */
+  function normClipName(n) {
+    var s = String(n || '');
+    var prev = null;
+    while (prev !== s) { prev = s; s = s.replace(/^(armature|animalarmature|characterarmature)\|/i, ''); }
+    return s.toLowerCase();
+  }
+
+  function clipScore(n, want) {
+    if (/death|attack|hit|die/.test(n)) return 0;   // 死亡/攻击/受击片段绝不能当成待机/走路/吃食
+    if (want === 'idle') {
+      if (n === 'idle' || n === 'idle_2') return 3;
+      if (/^idle/.test(n) && !/hit|death|attack/.test(n)) return 2;
+      if (/idle/.test(n) && !/hit|death|attack/.test(n)) return 1;
+    } else if (want === 'walk') {
+      if (n === 'walk' || n === 'walkslow') return 3;
+      if (/^(walk|run|gallop)/.test(n)) return 2;
+      if (/(walk|run|gallop)/.test(n)) return 1;
+    } else if (want === 'eat') {
+      if (/^(eating|idle_eating|idle_peck)$/.test(n)) return 3;
+      if (/(eat|peck)/.test(n)) return 2;
+      if (/headlow/.test(n)) return 1;
+    }
+    return 0;
+  }
+
+  /** 给每种需求挑一个最合适的动画片段（idle / walk / eat），没有就留空用 idle 兜底。 */
+  function indexClips(animations) {
+    var out = { idle: null, walk: null, eat: null, all: animations || [] };
+    var best = { idle: 0, walk: 0, eat: 0 };
+    out.all.forEach(function (clip) {
+      var n = normClipName(clip.name);
+      ['idle', 'walk', 'eat'].forEach(function (w) {
+        var sc = clipScore(n, w);
+        if (sc > best[w]) { best[w] = sc; out[w] = clip; }
+      });
+    });
+    if (!out.idle && out.all.length) out.idle = out.all[0];
+    return out;
+  }
+
+  /** 预加载全部 GLB（并行，单文件 12 秒超时即放弃该文件）。
+   *  永远 resolve、不 reject；失败的类型留在 glbCache 里标 ok:false，
+   *  调用方回退代码拼模型。 */
+  M.preloadGLB = function () {
+    if (glbPromise) return glbPromise;
+    glbPromise = new Promise(function (resolve) {
+      if (!THREE.GLTFLoader) {
+        Object.keys(GLB_DEFS).forEach(function (t) { glbCache[t] = { ok: false, error: 'no GLTFLoader' }; });
+        resolve(glbCache);
+        return;
+      }
+      var loader = new THREE.GLTFLoader();
+      var keys = Object.keys(GLB_DEFS);
+      var done = 0;
+      function finishOne() { done++; if (done >= keys.length) resolve(glbCache); }
+      keys.forEach(function (type) {
+        var def = GLB_DEFS[type];
+        var settled = false;
+        function settle() { if (!settled) { settled = true; finishOne(); } }
+        setTimeout(settle, 12000);
+        try {
+          loader.load(GLB_BASE + def.file, function (gltf) {
+            if (settled) return;
+            try {
+              toonifyGLB(gltf.scene);
+              glbCache[type] = { ok: true, scene: gltf.scene, clips: gltf.animations || [] };
+            } catch (e) { glbCache[type] = { ok: false, error: String(e && e.message || e) }; }
+            settle();
+          }, undefined, function () {
+            if (settled) return;
+            glbCache[type] = { ok: false, error: 'load failed: ' + def.file };
+            settle();
+          });
+        } catch (e) {
+          if (!settled) glbCache[type] = { ok: false, error: String(e && e.message || e) };
+          settle();
+        }
+      });
+    });
+    return glbPromise;
+  };
+
+  M.glbReady = function (type) { return !!(glbCache[type] && glbCache[type].ok); };
+  M.glbStatus = function () {
+    var out = {};
+    Object.keys(GLB_DEFS).forEach(function (t) {
+      var c = glbCache[t];
+      out[t] = { file: GLB_DEFS[t].file, ok: !!(c && c.ok), error: (c && c.error) || null, src: GLB_DEFS[t].src, lic: GLB_DEFS[t].lic, via: GLB_DEFS[t].via };
+    });
+    return out;
+  };
+  M.GLB_DEFS = GLB_DEFS;
+
+  /** 从模板克隆一个 GLB 动物实例：骨骼独立（SkeletonUtils.clone），
+   *  内层归一化到目标高度、脚底落在 y=0；外层 scale 由调用方定。 */
+  function buildGLBRig(type) {
+    var def = GLB_DEFS[type];
+    var tpl = glbCache[type];
+    var src = tpl.scene;
+    var clone = (THREE.SkeletonUtils && THREE.SkeletonUtils.clone) ? THREE.SkeletonUtils.clone(src) : src.clone();
+    var bb = new THREE.Box3().setFromObject(clone);
+    var sz = bb.getSize(new THREE.Vector3());
+    var inner = new THREE.Group();
+    var k = def.height / Math.max(0.05, sz.y);
+    inner.scale.setScalar(k);
+    inner.position.y = -bb.min.y * k;
+    inner.add(clone);
+    var g = new THREE.Group();
+    g.add(inner);
+    var rig = newRig(g, type);
+    rig.glb = true;
+    rig.mixer = new THREE.AnimationMixer(clone);
+    rig.clips = indexClips(tpl.clips);
+    rig._clipWant = null;
+    rig._curAct = null;
+    return rig;
+  }
+
+  /** 每帧驱动 GLB 骨骼动画：吃东西 > 走路 > 待机，0.2 秒淡入淡出切换。
+   *  由 scene.js updateAnimal 末尾调用（moving 由它算出）。 */
+  M.tickGLB = function (rig, dt, moving) {
+    if (!rig || !rig.mixer || !rig.clips) return;
+    var want = (rig.eating > 0) ? 'eat' : (moving ? 'walk' : 'idle');
+    if (rig._clipWant !== want) {
+      rig._clipWant = want;
+      var clip = rig.clips[want] || rig.clips.idle;
+      if (clip) {
+        var act = rig.mixer.clipAction(clip);
+        act.reset();
+        act.setLoop(THREE.LoopRepeat, Infinity);
+        act.fadeIn(0.2).play();
+        if (rig._curAct && rig._curAct !== act) { try { rig._curAct.fadeOut(0.2); } catch (e) {} }
+        rig._curAct = act;
+      }
+    }
+    rig.mixer.update(dt);
+  };
+
+  /** 松鼠专用入口：scene.js buildSquirrel 优先用 GLB，失败返回 null 用代码松鼠。 */
+  M.buildSquirrel = function (scale) {
+    if (!glbCache.squirrel || !glbCache.squirrel.ok) return null;
+    try {
+      var rig = buildGLBRig('squirrel');
+      rig.group.scale.setScalar(scale || 1);
+      rig.type = 'squirrel';
+      return rig;
+    } catch (e) { return null; }
+  };
+
   M.buildAnimal = function (type, scale, age) {
+    if (glbCache[type] && glbCache[type].ok) {
+      try {
+        var grig = buildGLBRig(type);
+        if (asAge(age) === 'baby') { grig.group.scale.setScalar((scale || 1) * 0.62); grig.baby = true; }
+        else grig.group.scale.setScalar(scale || 1);
+        grig.type = type;
+        grig.age = asAge(age);
+        return grig;
+      } catch (e) { console.warn('[GLB] 构建失败，回退代码模型：' + type, e); }
+    }
     var fn = BODIES[type] || BODIES.chicken;
     var prev = curAge;
     curAge = asAge(age);
@@ -1484,19 +1717,38 @@
     var size = item.size || 256;
     var rnd = getRenderer(size);
     var scene = new THREE.Scene();
-    var obj = item.kind === 'head' ? M.buildHead(item.animal)
+    // 头像：有 GLB 就用 GLB 全身 + 头部带取景（见下方 focus），没有则用代码拼头像；
+    //   buildHead 保持代码版，只供素材总览图 sheet.png 的头行使用。
+    var obj = item.kind === 'head'
+      ? ((glbCache[item.animal] && glbCache[item.animal].ok) ? M.buildAnimal(item.animal, 1).group : M.buildHead(item.animal))
       : item.kind === 'rig' ? M.buildAnimal(item.animal, 1, item.age).group
         : M.buildTool(item.key);
 
     var bb = new THREE.Box3().setFromObject(obj);
     var c = bb.getCenter(new THREE.Vector3());
-    obj.position.set(obj.position.x - c.x, obj.position.y - c.y, obj.position.z - c.z);
     var sz = bb.getSize(new THREE.Vector3());
     var maxDim = Math.max(sz.x, sz.y, sz.z) || 1;
 
     var holder = new THREE.Group();
     holder.add(obj);
-    holder.scale.setScalar(fit / maxDim);
+    var focus = null;
+    if (item.kind === 'head' && GLB_DEFS[item.animal] && glbCache[item.animal] && glbCache[item.animal].ok) focus = GLB_DEFS[item.animal].head;
+    if (focus) {
+      // GLB 头像只取头部带：头部中心移到原点、按头部高度定缩放，身体自然裁出画面外
+      var cy = bb.min.y + sz.y * (focus[0] + focus[1]) / 2;
+      var cz = bb.max.z - sz.z * 0.15;
+      obj.position.set(-c.x, -cy, -cz);
+      var headH = Math.max(0.3, sz.y * (focus[1] - focus[0]));
+      holder.scale.setScalar(fit / headH);
+    } else {
+      obj.position.set(obj.position.x - c.x, obj.position.y - c.y, obj.position.z - c.z);
+      var effMax = maxDim;
+      if (item.kind === 'rig' && !item.view) effMax = Math.max(sz.y, sz.x, sz.z * 0.6);
+      holder.scale.setScalar(fit / effMax);
+      // GLB 幼年是等比缩小 0.62（无四肢缩短/头放大），取景归一化会抹掉它：
+      // 这里再乘 0.62，让幼年渲染在框里确实更小，与成年形成对照。
+      if (item.age === 'baby' && item.kind === 'rig' && glbCache[item.animal] && glbCache[item.animal].ok) holder.scale.multiplyScalar(0.62);
+    }
     holder.rotation.y = item.yaw === undefined ? 0.45 : item.yaw;
     scene.add(holder);
 
@@ -1511,7 +1763,7 @@
 
     var cam = new THREE.PerspectiveCamera(32, 1, 0.05, 100);
     var dist = fit / (2 * Math.tan(16 * Math.PI / 180)) / 0.8;
-    var cd = item.cam || [0.42, 0.6, 1];
+    var cd = item.cam || (focus && GLB_DEFS[item.animal] && GLB_DEFS[item.animal].headCam) || [0.42, 0.6, 1];
     cam.position.set(cd[0], cd[1], cd[2]).normalize().multiplyScalar(dist);
     cam.lookAt(0, 0, 0);
 

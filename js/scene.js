@@ -81,6 +81,7 @@ window.Scene = (function () {
   let mode = '3d';
   let container = null;
   let renderer = null, scene = null, camera = null, clock = null;
+  let outlineEffect = null;   // 第四轮：卡通描边（OutlineEffect），建不起来就为 null
   let groups = {};
   let animalRigs = [], horseRig = null, dogRig = null, riderRig = null;
   /* 飞禽伙伴（老鹰 / 鸬鹚）：领养后在牧场场景中摆出正式 3D 模型 */
@@ -95,7 +96,7 @@ window.Scene = (function () {
   let anim = { t: 0, rideAngle: 0, riders: 0, flash: 0 };
   let last = { season: -1, weather: -1, riding: false, animalSig: '' };
   let camMode = 'wide';   // wide 全景 / field 农田特写
-  let camPan = { x: 0, z: -19 };   // 拖动镜头平移量（牧场是竖长一页，往下拉看；默认停在放牧空地 + 牛羊栏之间，两者同时可见）
+  let camPan = { x: 0, z: -21 };   // 拖动镜头平移量（牧场是竖长一页，往下拉看；默认停在放牧空地 + 牛羊栏之间，两者同时可见）
   let squirrelRig = null;   // 松鼠（平时在树上，下来啃果实）
   let fallbackCtx = null, fallbackCanvas = null, fallbackState = null;
   const toonMats = {};
@@ -574,11 +575,11 @@ window.Scene = (function () {
   function buildMeadow() {
     const M = LAYOUT.meadow;
     const cx = (M.minX + M.maxX) / 2, cz = (M.minZ + M.maxZ) / 2;
-    const oval = mesh(new THREE.CircleGeometry(17, 40), new THREE.MeshLambertMaterial({ color: 0x9bd46f }), cx, 0.02, cz, groups.terrain, false, true);
+    const oval = mesh(new THREE.CircleGeometry(17, 40), new THREE.MeshLambertMaterial({ color: 0x82c95c }), cx, 0.02, cz, groups.terrain, false, true);
     oval.rotation.x = -Math.PI / 2;
     oval.scale.set(1, 0.22, 1);
     // 边缘草丛圈
-    const tuftMat = new THREE.MeshLambertMaterial({ color: 0x7ec85a });
+    const tuftMat = new THREE.MeshLambertMaterial({ color: 0x68b84e });
     for (let i = 0; i < 26; i++) {
       const a = (i / 26) * Math.PI * 2;
       const tx = cx + Math.cos(a) * 16.6, tz = cz + Math.sin(a) * 3.6;
@@ -682,6 +683,31 @@ window.Scene = (function () {
   const SQ_SCALE = 0.4;
 
   function buildSquirrel() {
+    // 第四轮：优先用 GLB 松鼠（Gobkit CC0），失败回退代码松鼠
+    if (window.Models && typeof window.Models.buildSquirrel === 'function') {
+      let grig = null;
+      try { grig = window.Models.buildSquirrel(SQ_SCALE); } catch (e) { grig = null; }
+      if (grig && grig.group) {
+        const g = grig.group;
+        g.position.set(SQUIRREL_TREE.x, SQUIRREL_TREE.perchY, SQUIRREL_TREE.z);
+        g.rotation.y = 0.8;
+        groups.animals.add(g);
+        SQUIRREL_FRUITS.forEach(f => {
+          mesh(sphere(0.16, 10, 8), toon(0xe14b3f), f[0], 0.16, f[1], groups.props, false, false);
+          mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 5), toon(0x5f9f42), f[0], 0.3, f[1], groups.props, false, false);
+        });
+        // GLB 没有可动的头/尾部件：给 updateSquirrel 两个空占位，避免它报空
+        const dummyHead = new THREE.Group(); g.add(dummyHead);
+        const dummyTail = new THREE.Group(); g.add(dummyTail);
+        squirrelRig = { group: g, head: dummyHead, tail: dummyTail, state: 'tree', timer: 6 + Math.random() * 6, t: 0, from: null, to: null, fruit: null, leg: 0, mixer: grig.mixer, clips: grig.clips, glb: true };
+        const sqHit = new THREE.Mesh(new THREE.SphereGeometry(0.9 / SQ_SCALE, 8, 8), new THREE.MeshBasicMaterial({ visible: false }));
+        sqHit.position.set(0, 1.2, 0);
+        sqHit.userData.pickType = 'squirrel';
+        g.add(sqHit);
+        pickables.push(sqHit);
+        return;
+      }
+    }
     const g = new THREE.Group();
     const body = mesh(sphere(0.34, 16, 12), toon(0xb5763c), 0, 0.42, 0, g);
     body.scale.set(0.9, 1, 1.15);
@@ -729,6 +755,9 @@ window.Scene = (function () {
   function updateSquirrel(dt) {
     const sq = squirrelRig;
     if (!sq) return;
+    if (sq.mixer && window.Models && window.Models.tickGLB) {
+      try { window.Models.tickGLB(sq, dt, sq.state === 'flee' || sq.state === 'down' || sq.state === 'up'); } catch (e) {}
+    }
     sq.t += dt;
     if (sq.state === 'flee') {
       // 两段逃跑：先窜回树根，再爬上树躲到树干后
@@ -953,6 +982,12 @@ window.Scene = (function () {
   }
 
   function buildDog(scale) {
+    if (window.Models && window.Models.glbReady && window.Models.glbReady('dog')) {
+      try {
+        const grig = window.Models.buildAnimal('dog', scale);
+        if (grig && grig.group) return grig;
+      } catch (e) { console.warn('[GLB] 狗构建失败，回退代码模型', e); }
+    }
     const g = new THREE.Group();
     const rig = { group: g, type: 'dog', parts: {}, bob: Math.random() * 6 };
     const body = mesh(sphere(0.46, 20, 16), toon(0xf3c48a), 0, 0.56, 0, g);
@@ -979,6 +1014,12 @@ window.Scene = (function () {
   }
 
   function buildHorse(scale) {
+    if (window.Models && window.Models.glbReady && window.Models.glbReady('horse')) {
+      try {
+        const grig = window.Models.buildAnimal('horse', scale);
+        if (grig && grig.group) return grig;
+      } catch (e) { console.warn('[GLB] 马构建失败，回退代码模型', e); }
+    }
     const g = new THREE.Group();
     const rig = { group: g, type: 'horse', parts: {}, bob: Math.random() * 6 };
     const body = mesh(sphere(0.86, 24, 18), toon(0xb87333), 0, 1.32, 0, g);
@@ -1146,7 +1187,7 @@ window.Scene = (function () {
   function roamRectFor(rig) {
     if (rig.zone === 'meadow' || (rig.type === 'cat' && rig.grazing)) {
       const M = LAYOUT.meadow;
-      return { minX: M.minX + 8, maxX: M.maxX - 8, minZ: M.minZ + 3.5, maxZ: M.maxZ - 1 };
+      return { minX: M.minX + 9.5, maxX: M.maxX - 9.5, minZ: M.minZ + 3.5, maxZ: M.maxZ - 1 };
     }
     if (rig.zone === 'free') return FREE_RECTS[Math.floor(Math.random() * FREE_RECTS.length)];
     const R = rig.penKey ? penByKey(rig.penKey) : null;
@@ -1482,7 +1523,7 @@ window.Scene = (function () {
       if (rig.grazing && rig.zone === 'pen' && rig.penKey && GRAZE_ROUTES[rig.penKey]) {
         const pts = GRAZE_ROUTES[rig.penKey].map(p => ({ x: p[0], z: p[1] }));
         const M = LAYOUT.meadow;
-        pts.push({ x: M.minX + 8 + Math.random() * (M.maxX - M.minX - 16), z: M.minZ + 3.5 + Math.random() * (M.maxZ - M.minZ - 4.5) });   // 落点收进默认镜头可见带
+        pts.push({ x: M.minX + 9.5 + Math.random() * (M.maxX - M.minX - 19), z: M.minZ + 3.5 + Math.random() * (M.maxZ - M.minZ - 4.5) });   // 落点收进默认镜头可见带
         rig.trip = { kind: 'graze', pts: pts, leg: 0, speed: 2.6 };
         rig.eating = 0;
       } else if (!rig.grazing && rig.zone === 'meadow' && rig.penKey) {
@@ -1579,6 +1620,11 @@ window.Scene = (function () {
     if (rig.produceMesh) {
       rig.produceMesh.rotation.z += dt * 2;
       rig.produceMesh.position.y = (rig.charmHeartY || 2.5) + Math.sin(anim.t * 4) * 0.08;
+    }
+
+    // GLB 骨骼动画：吃东西 > 走路 > 待机（代码拼模型无 mixer，跳过）
+    if (rig.mixer && window.Models && window.Models.tickGLB) {
+      try { window.Models.tickGLB(rig, dt, moving); } catch (e) {}
     }
   }
 
@@ -2298,7 +2344,7 @@ window.Scene = (function () {
     fxCtx.clearRect(0, 0, fxW, fxH);
     if (document.body.dataset.view !== 'pasture') { fxDrops = []; return; }
     const w = currentState ? currentState.weather : 0;
-    if (w === 0) fxSunbeams(1);
+    if (w === 0) fxSunbeams(0.6);   // 晴天斜光要淡，只留一点光束感，别把画面洗白
     else if (w === 3) fxSunbeams(1.7);
     else if (w === 1 || w === 2 || w === 4) fxDroplets(dt, w);
     else if (w === 5) fxBlizzard(dt);
@@ -2346,9 +2392,9 @@ window.Scene = (function () {
     if (scene) scene.fog = new THREE.Fog(skyHex, fogNear, fogFar);
     if (renderer) renderer.toneMappingExposure = weather === 3 ? 1.25 : weather === 4 ? 0.85 : 1.0;
     if (groups.light) {
-      groups.light.intensity = 0.62 * dim;
+      groups.light.intensity = 0.68 * dim;
       groups.light.color.setHex(weather === 3 ? 0xfff6da : weather === 4 ? 0xc8d4e0 : 0xfff3d8);
-      groups.hemi.intensity = 0.42 * (dim + 0.15);
+      groups.hemi.intensity = 0.26 * (dim + 0.15);
     }
     groups._dim = dim;
     groups._skyHex = skyHex;
@@ -2401,10 +2447,14 @@ window.Scene = (function () {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(container.clientWidth || 720, container.clientHeight || 480, false);
     if (THREE.sRGBEncoding) renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMapping = THREE.NoToneMapping;   // 第四轮：关 ACES 色调映射（它会把高饱和色洗白），颜色按原值输出
     renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;   // 硬阴影（卡通配方）
+    // 卡通描边（OutlineEffect）：整场景描一圈深色轮廓；失败则无描边继续跑
+    try {
+      if (THREE.OutlineEffect) outlineEffect = new THREE.OutlineEffect(renderer, { defaultThickness: 0.016, defaultColor: [0.23, 0.19, 0.16], defaultAlpha: 0.85 });
+    } catch (e) { outlineEffect = null; }
 
     scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xdcefff, 85, 200);   // 远处轻微空气雾，增强景深
@@ -2426,9 +2476,9 @@ window.Scene = (function () {
     groups.structures = new THREE.Group();
     scene.add(groups.terrain, groups.field, groups.buildings, groups.props, groups.animals, groups.structures);
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0xd8e8c8, 0.42);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0xd8e8c8, 0.30);
     scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xfff3d8, 0.62);
+    const dir = new THREE.DirectionalLight(0xfff3d8, 0.78);
     dir.position.set(16, 30, 14);
     dir.castShadow = true;
     dir.shadow.mapSize.set(2048, 2048);
@@ -2437,7 +2487,7 @@ window.Scene = (function () {
     dir.shadow.camera.near = 1; dir.shadow.camera.far = 80;
     dir.shadow.bias = -0.0012;
     scene.add(dir);
-    const amb = new THREE.AmbientLight(0xffffff, 0.1);
+    const amb = new THREE.AmbientLight(0xffffff, 0.05);
     scene.add(amb);
     groups.light = dir;
     groups.hemi = hemi;
@@ -2618,11 +2668,11 @@ window.Scene = (function () {
       if (anim.flash > 0) {
         anim.flash -= dt;
         const f = Math.max(0, anim.flash / 0.16);
-        if (groups.light) groups.light.intensity = 1.12 * ((groups._dim || 0.55) + f * 2.4);
+        if (groups.light) groups.light.intensity = 0.68 * ((groups._dim || 0.55) + f * 2.4);
         if (groups.sky) groups.sky.material.color.setHex(0xf4f9ff);
       } else if (groups.sky && groups._skyHex !== undefined) {
         groups.sky.material.color.setHex(groups._skyHex);
-        if (groups.light) groups.light.intensity = 1.12 * (groups._dim || 1);
+        if (groups.light) groups.light.intensity = 0.68 * (groups._dim || 1);
       }
       drawWeatherFX(dt);
       const cam = (camMode === 'field' && !(currentState && currentState.horse.riding)) ? LAYOUT.camField : LAYOUT.camOffset;
@@ -2636,7 +2686,10 @@ window.Scene = (function () {
         camera.position.z += (cam.z + camPan.z - camera.position.z) * dt;
         camera.lookAt(look[0] + camPan.x, look[1], look[2] + camPan.z);
       }
-      if (renderer && scene && camera) renderer.render(scene, camera);
+      if (renderer && scene && camera) {
+        if (outlineEffect) { try { outlineEffect.render(scene, camera); } catch (e) { outlineEffect = null; renderer.render(scene, camera); } }
+        else renderer.render(scene, camera);
+      }
     } else {
       renderFallback(dt);
     }
@@ -2788,6 +2841,7 @@ window.Scene = (function () {
     if (mode === '3d' && renderer && container) {
       const w = container.clientWidth || 720, h = container.clientHeight || 460;
       renderer.setSize(w, h, false);
+      if (outlineEffect) { try { outlineEffect.setSize(w, h); } catch (e) {} }
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       resizeWeatherFX();

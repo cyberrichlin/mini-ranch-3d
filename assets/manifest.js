@@ -1,6 +1,6 @@
 /* 自动生成：python3 tools/render-assets-linux.py（与 node tools/render-assets.js 同构，另补手工导航图标） */
 window.MF_ASSETS = {
- "generatedAt": "2026-11-23T08:53:00.685156Z",
+ "generatedAt": "2026-11-23T10:07:59.770714Z",
  "heads": {
   "chicken": "assets/animals/chicken.png",
   "cow": "assets/animals/cow.png",

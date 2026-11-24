@@ -35,6 +35,14 @@
   async function run() {
     if (!window.THREE) throw new Error('three.min.js 未加载');
     if (!window.Models) throw new Error('models.js 未加载');
+    if (window.Models.preloadGLB) {
+      log('正在预加载 GLB 模型…');
+      await Promise.race([window.Models.preloadGLB(), new Promise(function (r) { setTimeout(r, 20000); })]);
+      if (window.Models.glbStatus) {
+        var st = window.Models.glbStatus();
+        Object.keys(st).forEach(function (t) { log('  GLB ' + t + ': ' + (st[t].ok ? 'OK' : '回退代码模型 (' + st[t].error + ')')); });
+      }
+    }
     var list = window.Models.assetList();
     log('待生成资源: ' + list.length + ' 项');
     var out = [];
