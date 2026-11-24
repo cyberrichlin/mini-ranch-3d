@@ -38,7 +38,7 @@ window.Scene = (function () {
     pond: { x: 0, z: 34, r: 4.5 },
     mine: { x: 25, z: 0 },
     crate: { x: -17.5, z: 4.8 },
-    camOffset: { x: 0, y: 20, z: 18 },   // 第三轮拉近：默认镜头同时看到放牧空地 + 牛羊栏，动物够大能看清
+    camOffset: { x: 0, y: 10, z: 1.5 },   // 第五轮：镜头拉近对准放牧空地（相机目标约 (0,10,-16.5)，看向空地中心；fov 40 是第三版：42° 时鸡在空地 62-69px 差几 px 到 70 线，38° 又会把牛头顶出画面，取中间 40°）
     /* 农田特写机位（农田 v9：镜头只是微微斜着往下看，不是完全垂直俯视；约 69° 仰角，植物能看到茎的高度） */
     camField: { x: 30, y: 17, z: -9.5, lookX: 30, lookY: 0, lookZ: -16 }
   };
@@ -96,7 +96,7 @@ window.Scene = (function () {
   let anim = { t: 0, rideAngle: 0, riders: 0, flash: 0 };
   let last = { season: -1, weather: -1, riding: false, animalSig: '' };
   let camMode = 'wide';   // wide 全景 / field 农田特写
-  let camPan = { x: 0, z: -21 };   // 拖动镜头平移量（牧场是竖长一页，往下拉看；默认停在放牧空地 + 牛羊栏之间，两者同时可见）
+  let camPan = { x: 0, z: -18 };   // 第五轮：拖动镜头平移量；默认看向放牧空地中心（lookAt z = -14 + (-18) = -32）
   let squirrelRig = null;   // 松鼠（平时在树上，下来啃果实）
   let fallbackCtx = null, fallbackCanvas = null, fallbackState = null;
   const toonMats = {};
@@ -180,7 +180,7 @@ window.Scene = (function () {
 
   function buildGround() {
     /* 草地一直延伸到远方（v12 远景）：大圆盘 + 远处雾色融合进天空 */
-    const g = mesh(new THREE.CircleGeometry(120, 48), soft(0x86c95e), 0, -0.02, 0, groups.terrain, false, true);   // 第三轮：草地饱和一点
+    const g = mesh(new THREE.CircleGeometry(120, 48), soft(0x6fbf4a), 0, -0.02, 0, groups.terrain, false, true);   // 第五轮：草地再加一档饱和
     g.rotation.x = -Math.PI / 2;
     groups.ground = g;
 
@@ -199,7 +199,7 @@ window.Scene = (function () {
     });
 
     // 草簇（避开农田与池塘）
-    const grassMat = new THREE.MeshLambertMaterial({ color: 0x7ec85a });
+    const grassMat = new THREE.MeshLambertMaterial({ color: 0x6fbf4a });   // 第五轮：草丛加深
     const grassGeo = new THREE.ConeGeometry(0.16, 0.7, 5);
     for (let i = 0; i < 120; i++) {
       const x = -24 + Math.random() * 48, z = -40 + Math.random() * 76;
@@ -335,7 +335,7 @@ window.Scene = (function () {
     mesh(new THREE.ConeGeometry(0.16, 0.7, 6), toon(0xe8c25a), cr.x - 0.5, 1.0, cr.z, groups.buildings, false, false);
     mesh(new THREE.ConeGeometry(0.16, 0.7, 6), toon(0xe8c25a), cr.x - 0.1, 1.0, cr.z + 0.3, groups.buildings, false, false);
     mesh(sphere(0.2, 10, 8), toon(0xef7d3c), cr.x + 0.5, 0.95, cr.z - 0.2, groups.buildings, false, false);
-    mesh(sphere(0.18, 10, 8), toon(0x7ec85a), cr.x + 0.6, 0.9, cr.z + 0.35, groups.buildings, false, false);
+    mesh(sphere(0.18, 10, 8), toon(0x6fbf4a), cr.x + 0.6, 0.9, cr.z + 0.35, groups.buildings, false, false);
     const crateHit = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.6, 2.2), new THREE.MeshBasicMaterial({ visible: false }));
     crateHit.position.set(cr.x, 0.8, cr.z);
     crateHit.userData.pickType = 'crate';
@@ -409,7 +409,7 @@ window.Scene = (function () {
         const idx = row * F.cols + col;
         const x = F.x + col * (F.plotSize + F.gap);
         const z = F.z + row * (F.plotSize + F.gap);
-        const grass = mesh(grassGeo, soft(0x86cf63), x, 0.08, z, groups.field, false, true);
+        const grass = mesh(grassGeo, soft(0x79c95a), x, 0.08, z, groups.field, false, true);   // 第五轮：田间草加深
         const soil = mesh(soilGeo, toon(0x8a6242), x, 0.16, z, groups.field, false, true);
         grass.visible = true;
         soil.visible = false;
@@ -575,11 +575,11 @@ window.Scene = (function () {
   function buildMeadow() {
     const M = LAYOUT.meadow;
     const cx = (M.minX + M.maxX) / 2, cz = (M.minZ + M.maxZ) / 2;
-    const oval = mesh(new THREE.CircleGeometry(17, 40), new THREE.MeshLambertMaterial({ color: 0x82c95c }), cx, 0.02, cz, groups.terrain, false, true);
+    const oval = mesh(new THREE.CircleGeometry(17, 40), new THREE.MeshLambertMaterial({ color: 0x6fc24a }), cx, 0.02, cz, groups.terrain, false, true);   // 第五轮：放牧空地加深
     oval.rotation.x = -Math.PI / 2;
     oval.scale.set(1, 0.22, 1);
     // 边缘草丛圈
-    const tuftMat = new THREE.MeshLambertMaterial({ color: 0x68b84e });
+    const tuftMat = new THREE.MeshLambertMaterial({ color: 0x58b03e });   // 第五轮：空地边缘草丛加深
     for (let i = 0; i < 26; i++) {
       const a = (i / 26) * Math.PI * 2;
       const tx = cx + Math.cos(a) * 16.6, tz = cz + Math.sin(a) * 3.6;
@@ -595,8 +595,8 @@ window.Scene = (function () {
       mesh(sphere(0.16, 8, 8), new THREE.MeshLambertMaterial({ color: petalCols[i % 4] }), fx, 0.44, fz, groups.terrain, false, false);
     }
     // 木牌「放牧草地」
-    mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.4, 6), toon(0x8a6242), cx, 0.7, M.maxZ + 0.6, groups.props);
-    const board = mesh(new THREE.BoxGeometry(2.4, 0.9, 0.12), toon(0xd8b074), cx, 1.5, M.maxZ + 0.6, groups.props);
+    mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.4, 6), toon(0x8a6242), -2.0, 0.7, M.maxZ + 0.6, groups.props);   // 第五轮：木牌移到画面左缘，不挡放牧动物
+    const board = mesh(new THREE.BoxGeometry(2.4, 0.9, 0.12), toon(0xd8b074), -2.0, 1.5, M.maxZ + 0.6, groups.props);
     outline(board, 1.04, 0x6a5546);
     const cv = document.createElement('canvas');
     cv.width = 256; cv.height = 96;
@@ -606,7 +606,7 @@ window.Scene = (function () {
     c2.fillText('放牧草地', 128, 50);
     const tex = new THREE.CanvasTexture(cv);
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.82), new THREE.MeshBasicMaterial({ map: tex }));
-    sign.position.set(cx, 1.5, M.maxZ + 0.68);
+    sign.position.set(-2.0, 1.5, M.maxZ + 0.68);   // 第五轮：x=-3.2 时木牌一半在画面外，移到 -2.0 整块可见
     groups.props.add(sign);
   }
 
@@ -641,7 +641,7 @@ window.Scene = (function () {
     const cloverGeo = new THREE.CircleGeometry(0.3, 8);
     const cloverMat = new THREE.MeshLambertMaterial({ color: 0x4f9e3a });
     const weedGeo = new THREE.ConeGeometry(0.18, 0.75, 5);
-    const weedMat = new THREE.MeshLambertMaterial({ color: 0x7ec85a });
+    const weedMat = new THREE.MeshLambertMaterial({ color: 0x6fbf4a });
     for (let i = 0; i < 56; i++) {
       const side = i % 2 ? 1 : -1;
       const x = side * (18.5 + Math.random() * 5), z = -36 + Math.random() * 68;
@@ -683,7 +683,7 @@ window.Scene = (function () {
   const SQ_SCALE = 0.4;
 
   function buildSquirrel() {
-    // 第四轮：优先用 GLB 松鼠（Gobkit CC0），失败回退代码松鼠
+    // 第五轮：只用 GLB 松鼠（Gobkit CC0）；失败时松鼠不出现
     if (window.Models && typeof window.Models.buildSquirrel === 'function') {
       let grig = null;
       try { grig = window.Models.buildSquirrel(SQ_SCALE); } catch (e) { grig = null; }
@@ -708,38 +708,8 @@ window.Scene = (function () {
         return;
       }
     }
-    const g = new THREE.Group();
-    const body = mesh(sphere(0.34, 16, 12), toon(0xb5763c), 0, 0.42, 0, g);
-    body.scale.set(0.9, 1, 1.15);
-    outline(body, 1.05, 0x5c3b22);
-    const head = mesh(sphere(0.24, 16, 12), toon(0xb5763c), 0, 0.82, 0.18, g);
-    outline(head, 1.06, 0x5c3b22);
-    makeEyes(head, 0.07, 0.1, 0.04, 0.2);
-    for (let s = -1; s <= 1; s += 2) {
-      const ear = mesh(new THREE.ConeGeometry(0.07, 0.22, 6), toon(0x9a5f30), 0.13 * s, 1.04, 0.14, g);
-      ear.rotation.z = s * 0.25;
-    }
-    const tail = mesh(sphere(0.3, 14, 12), toon(0xd08a4a), 0, 0.72, -0.42, g);
-    tail.scale.set(0.7, 1.25, 0.5);
-    tail.rotation.x = -0.5;
-    outline(tail, 1.04, 0x5c3b22);
-    g.position.set(SQUIRREL_TREE.x, SQUIRREL_TREE.perchY, SQUIRREL_TREE.z);
-    g.rotation.y = 0.8;
-    g.scale.setScalar(SQ_SCALE);   // 很迷你，约猫的一半大
-    groups.animals.add(g);
-    // 树下落果（松鼠啃食的目标）
-    SQUIRREL_FRUITS.forEach(f => {
-      mesh(sphere(0.16, 10, 8), toon(0xe14b3f), f[0], 0.16, f[1], groups.props, false, false);
-      mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 5), toon(0x5f9f42), f[0], 0.3, f[1], groups.props, false, false);
-    });
-    squirrelRig = { group: g, head: head, tail: tail, state: 'tree', timer: 6 + Math.random() * 6, t: 0, from: null, to: null, fruit: null, leg: 0 };
-    // 点按松鼠的拾取体（跟着松鼠走；点到就逃跑，不给爱心气泡）
-    // 注意：拾取球是松鼠组的子物体，会随组缩放，半径按 SQ_SCALE 反推，保证世界尺寸约 0.9
-    const sqHit = new THREE.Mesh(new THREE.SphereGeometry(0.9 / SQ_SCALE, 8, 8), new THREE.MeshBasicMaterial({ visible: false }));
-    sqHit.position.set(0, 1.2, 0);
-    sqHit.userData.pickType = 'squirrel';
-    g.add(sqHit);
-    pickables.push(sqHit);
+    // 第五轮：GLB 失败时松鼠不出现（不再回退代码松鼠）；updateSquirrel / fleeSquirrel 已有 null 守卫
+    squirrelRig = null;
   }
 
   /** 摸了松鼠：立马逃到树上躲起来（先窜回树根、爬上树、缩在树干后），过一会儿再探头 */
@@ -871,87 +841,7 @@ window.Scene = (function () {
     return legs;
   }
 
-  function buildChicken(scale) {
-    const g = new THREE.Group();
-    const rig = { group: g, type: 'chicken', parts: {}, bob: Math.random() * 6 };
-    const body = mesh(sphere(0.62, 20, 16), toon(0xfff8ea), 0, 0.72, 0, g);
-    body.scale.set(1, 0.92, 1.05);
-    outline(body, 1.06, 0x6a5546);
-    const head = mesh(sphere(0.42, 20, 16), toon(0xfff8ea), 0, 1.34, 0.16, g);
-    outline(head, 1.07, 0x6a5546);
-    rig.parts.head = head;
-    rig.parts.eyes = makeEyes(head, 0.12, 0.17, 0.06, 0.34);
-    blushSpots(head, 0.075, 0.29, -0.08, 0.3);
-    const beak = mesh(new THREE.ConeGeometry(0.11, 0.26, 6), toon(0xffc04d), 0, 1.3, 0.55, g);
-    beak.rotation.x = Math.PI / 2;
-    mesh(sphere(0.14, 12, 10), toon(0xef5350), 0, 1.76, 0.1, g);
-    mesh(sphere(0.1, 10, 8), toon(0xef5350), 0, 1.68, 0.34, g);
-    const wingL = mesh(sphere(0.24, 12, 10), toon(0xffeccf), -0.58, 0.72, 0, g);
-    wingL.scale.set(0.55, 0.9, 1.1);
-    const wingR = wingL.clone();
-    wingR.position.x = 0.58;
-    g.add(wingR);
-    rig.parts.legs = buildLegs(g, 0xffb347, 2, 0.24, { x: 0.2, z: 0 }, 0.48, 0.055);
-    const tail = mesh(sphere(0.22, 12, 10), toon(0xffe0b0), 0, 0.86, -0.62, g);
-    tail.scale.set(0.7, 1, 0.9);
-    rig.parts.tail = tail;
-    blinker(rig);
-    g.scale.setScalar(scale || 1);
-    return rig;
-  }
 
-  function buildCow(scale, sheep) {
-    const g = new THREE.Group();
-    const bodyColor = sheep ? 0xfffdf8 : 0xfff6f2;
-    const accent = sheep ? 0xf0e6dc : 0x4a4a52;
-    const rig = { group: g, type: sheep ? 'sheep' : 'cow', parts: {}, bob: Math.random() * 6 };
-    const body = mesh(sphere(1.02, 24, 18), toon(bodyColor), 0, 1.05, 0, g);
-    body.scale.set(0.86, 0.88, 1.22);
-    outline(body, 1.05, 0x6a5546);
-    rig.parts.body = body;
-
-    if (!sheep) {
-      for (let i = 0; i < 3; i++) {
-        const spot = mesh(sphere(0.3, 12, 10), toon(accent), -0.5 + Math.random() * 0.2, 1.2 + i * 0.22, -0.5 + i * 0.5, g);
-        spot.scale.set(0.5, 0.5, 0.62);
-      }
-    } else {
-      for (let i = 0; i < 7; i++) {
-        const puff = mesh(sphere(0.34, 12, 10), toon(0xffffff), -0.7 + Math.random() * 1.4, 1.4 + Math.random() * 0.35, -0.8 + Math.random() * 1.6, g);
-        puff.scale.setScalar(0.85 + Math.random() * 0.4);
-      }
-    }
-
-    const head = mesh(sphere(0.62, 22, 18), toon(bodyColor), 0, 1.72, 0.92, g);
-    outline(head, 1.06, 0x6a5546);
-    rig.parts.head = head;
-    const snout = mesh(sphere(0.33, 16, 12), toon(0xf7b4c0), 0, 1.56, 1.42, g);
-    snout.scale.set(1, 0.78, 0.7);
-    rig.parts.eyes = makeEyes(head, 0.14, 0.28, 0.12, 0.52);
-    blushSpots(head, 0.09, 0.48, -0.12, 0.42);
-
-    if (!sheep) {
-      const hornMat = toon(0xd9c9a3);
-      for (let s = -1; s <= 1; s += 2) {
-        const horn = mesh(new THREE.TorusGeometry(0.17, 0.055, 6, 10, Math.PI * 1.1), hornMat, 0.34 * s, 1.98, 0.86, g);
-        horn.rotation.z = s * 0.6;
-      }
-    } else {
-      const earMat = toon(0xf0e0d2);
-      for (let s = -1; s <= 1; s += 2) {
-        const ear = mesh(sphere(0.2, 12, 10), earMat, 0.6 * s, 1.96, 0.86, g);
-        ear.scale.set(0.6, 0.9, 1.4);
-        ear.rotation.z = s * 0.7;
-      }
-    }
-
-    rig.parts.legs = buildLegs(g, sheep ? 0xddcfc2 : 0xf0e2dc, 4, 0.34, { x: 0.42, z: 0.62 }, 0.66, 0.12);
-    const tail = mesh(sphere(0.16, 10, 8), toon(accent), 0, 1.35, -1.15, g);
-    rig.parts.tail = tail;
-    blinker(rig);
-    g.scale.setScalar(scale || 1);
-    return rig;
-  }
 
   function buildRabbit(scale) {
     const g = new THREE.Group();
@@ -981,72 +871,26 @@ window.Scene = (function () {
     return rig;
   }
 
+  // 第五轮：只用 GLB 狗；GLB 未就绪返回 null（调用方跳过该动物），不再回退代码狗
   function buildDog(scale) {
     if (window.Models && window.Models.glbReady && window.Models.glbReady('dog')) {
       try {
         const grig = window.Models.buildAnimal('dog', scale);
         if (grig && grig.group) return grig;
-      } catch (e) { console.warn('[GLB] 狗构建失败，回退代码模型', e); }
+      } catch (e) { console.warn('[GLB] 狗构建失败，该动物跳过', e); }
     }
-    const g = new THREE.Group();
-    const rig = { group: g, type: 'dog', parts: {}, bob: Math.random() * 6 };
-    const body = mesh(sphere(0.46, 20, 16), toon(0xf3c48a), 0, 0.56, 0, g);
-    body.scale.set(0.85, 0.8, 1.25);
-    outline(body, 1.06, 0x6a5546);
-    const head = mesh(sphere(0.36, 20, 16), toon(0xf3c48a), 0, 1.02, 0.42, g);
-    outline(head, 1.07, 0x6a5546);
-    rig.parts.head = head;
-    rig.parts.eyes = makeEyes(head, 0.11, 0.15, 0.06, 0.3);
-    const snout = mesh(sphere(0.17, 12, 10), toon(0xfff2dd), 0, 0.94, 0.72, g);
-    snout.scale.set(1, 0.7, 0.8);
-    mesh(sphere(0.06, 8, 8), new THREE.MeshBasicMaterial({ color: 0x3a2f2a }), 0, 0.99, 0.87, g, false, false);
-    for (let s = -1; s <= 1; s += 2) {
-      const ear = mesh(sphere(0.16, 10, 8), toon(0xe2a05f), 0.26 * s, 1.24, 0.34, g);
-      ear.scale.set(0.6, 1, 0.8);
-      ear.rotation.z = s * 0.5;
-    }
-    rig.parts.legs = buildLegs(g, 0xe2a05f, 4, 0.16, { x: 0.22, z: 0.3 }, 0.32, 0.075);
-    rig.parts.tail = mesh(new THREE.ConeGeometry(0.1, 0.4, 8), toon(0xe2a05f), 0, 0.78, -0.6, g);
-    rig.parts.tail.rotation.x = -0.7;
-    blinker(rig);
-    g.scale.setScalar(scale || 1);
-    return rig;
+    return null;
   }
 
+  // 第五轮：只用 GLB 马；GLB 未就绪返回 null（调用方跳过该动物），不再回退代码马
   function buildHorse(scale) {
     if (window.Models && window.Models.glbReady && window.Models.glbReady('horse')) {
       try {
         const grig = window.Models.buildAnimal('horse', scale);
         if (grig && grig.group) return grig;
-      } catch (e) { console.warn('[GLB] 马构建失败，回退代码模型', e); }
+      } catch (e) { console.warn('[GLB] 马构建失败，该动物跳过', e); }
     }
-    const g = new THREE.Group();
-    const rig = { group: g, type: 'horse', parts: {}, bob: Math.random() * 6 };
-    const body = mesh(sphere(0.86, 24, 18), toon(0xb87333), 0, 1.32, 0, g);
-    body.scale.set(0.82, 0.9, 1.35);
-    outline(body, 1.05, 0x5c3b22);
-    rig.parts.body = body;
-    const mane = mesh(new THREE.BoxGeometry(0.18, 0.5, 1.1), toon(0x5c3b22), 0, 1.9, 0.1, g);
-    mane.rotation.x = -0.18;
-    const neck = mesh(new THREE.CylinderGeometry(0.3, 0.42, 0.9, 12), toon(0xb87333), 0, 1.85, 0.7, g);
-    neck.rotation.x = 0.4;
-    const head = mesh(sphere(0.44, 20, 16), toon(0xb87333), 0, 2.28, 1.02, g);
-    head.scale.set(0.82, 0.95, 1.25);
-    outline(head, 1.07, 0x5c3b22);
-    rig.parts.head = head;
-    rig.parts.eyes = makeEyes(head, 0.13, 0.2, 0.1, 0.4);
-    const snout = mesh(sphere(0.24, 14, 12), toon(0xe8c9a8), 0, 2.14, 1.5, g);
-    snout.scale.set(0.85, 0.72, 0.9);
-    for (let s = -1; s <= 1; s += 2) {
-      const ear = mesh(new THREE.ConeGeometry(0.1, 0.34, 6), toon(0xb87333), 0.2 * s, 2.72, 0.86, g);
-      ear.rotation.z = s * 0.25;
-    }
-    rig.parts.legs = buildLegs(g, 0xa5652c, 4, 0.42, { x: 0.36, z: 0.56 }, 0.84, 0.115);
-    rig.parts.tail = mesh(new THREE.ConeGeometry(0.14, 0.8, 8), toon(0x5c3b22), 0, 1.6, -1.15, g);
-    rig.parts.tail.rotation.x = 0.6;
-    blinker(rig);
-    g.scale.setScalar(scale || 1);
-    return rig;
+    return null;
   }
 
   function buildRider() {
@@ -1137,13 +981,14 @@ window.Scene = (function () {
         const rig = window.Models.buildAnimal(a.type, scale);
         if (rig && rig.group && rig.parts) return rig;
       } catch (e) {
-        console.warn('复用 models.js 建模失败，回退内置建模：' + a.type, e);
+        console.warn('models.js 建模失败，该动物跳过：' + a.type, e);
       }
     }
-    if (a.type === 'chicken') return buildChicken(scale);
-    if (a.type === 'sheep') return buildCow(scale, true);
+    // 第五轮：只有兔子（anjela）没有 GLB，走内置 buildRabbit；其余种类 GLB 失败时
+    // 返回 null（调用方跳过该动物），不再回退代码拼模型
     if (a.type === 'anjela') return buildRabbit(scale);
-    return buildCow(scale, false);
+    console.warn('[GLB] 动物缺席（模型未加载）：' + a.type);
+    return null;
   }
 
   /** 给动物叠加一层不可见拾取体：手机端手指点击的容错更大，避免点不中（不参与渲染） */
@@ -1169,11 +1014,11 @@ window.Scene = (function () {
   /* 放牧出栏路径：从各栏北门走出去（穿门洞，不穿墙），到放牧空地；收回时原路返回
      牛/羊栏直通空地；鸡栏走两栏中间的缝；兔/羊驼栏先沿栏间走道往西，再从西侧北上 */
   const GRAZE_ROUTES = {
-    cow: [[-8.5, -29], [-8.5, -33.5]],
-    sheep: [[8.5, -29], [8.5, -33.5]],
+    cow: [[-8.5, -29], [-1.8, -33.5]],   // 第五轮：终点收进牛的活动带（±1.8）；去掉了 [-8.5,-33.5] 中点——原来沿空地北沿走 5 米全程在画面外，改走对角线直接进可见带
+    sheep: [[8.5, -29], [2.2, -33.5]],   // 第五轮：终点收进羊的活动带（±2.2）；去掉了 [8.5,-33.5] 中点
     chicken: [[0, -19], [0, -21.5], [0, -33.5]],
-    anjela: [[0, -10], [-17.5, -11], [-17.5, -33.5]],
-    llama: [[0, -1.5], [-17.5, -2.5], [-17.5, -33.5]]
+    anjela: [[0, -10], [-17.5, -11], [-17.5, -33.5], [-2.5, -33.5]],   // 第五轮：终点收进放牧可见带
+    llama: [[0, -1.5], [-17.5, -2.5], [-17.5, -33.5], [-2.5, -33.5]]   // 第五轮：终点收进放牧可见带
   };
   /* 猫上屋顶的落点（农舍 / 谷仓屋顶）与屋前起跳点 */
   const ROOF_SPOTS = [
@@ -1182,12 +1027,17 @@ window.Scene = (function () {
   ];
 
   /* 按当前区域取一个散步范围：栏内 / 放牧空地 / 自由活动区 */
-  /* 放牧活动带：默认镜头在 390 宽竖屏上约能看到 x -7.5..7.5（竖屏横向视野窄），
+  /* 放牧活动带（第五轮）：镜头拉近后默认画面约只看到 x -3.5..3.5，
      放牧动物只在这一带散步/落点，才不会跑出画面外；草地本身仍是 30 宽的大椭圆 */
+  /* 放牧活动带（第五轮）：按体型分带（可见半宽约 4.2 米，牛 3.1 米长、羊 2.5 米长，带太宽会头/尾出画） */
+  function meadowBandFor(rig) {
+    const M = LAYOUT.meadow;
+    const half = rig.type === 'cow' ? 1.8 : rig.type === 'sheep' ? 2.2 : rig.type === 'chicken' ? 3.0 : rig.type === 'cat' ? 3.2 : 3.5;
+    return { minX: -half, maxX: half, minZ: M.minZ + 3.5, maxZ: M.maxZ - 1 };
+  }
   function roamRectFor(rig) {
     if (rig.zone === 'meadow' || (rig.type === 'cat' && rig.grazing)) {
-      const M = LAYOUT.meadow;
-      return { minX: M.minX + 9.5, maxX: M.maxX - 9.5, minZ: M.minZ + 3.5, maxZ: M.maxZ - 1 };
+      return meadowBandFor(rig);
     }
     if (rig.zone === 'free') return FREE_RECTS[Math.floor(Math.random() * FREE_RECTS.length)];
     const R = rig.penKey ? penByKey(rig.penKey) : null;
@@ -1225,6 +1075,7 @@ window.Scene = (function () {
     state.animals.forEach(a => { typeCount[a.type] = (typeCount[a.type] || 0) + 1; });
     state.animals.forEach(a => {
       const rig = buildRigFor(a);
+      if (!rig) { console.warn('[GLB] 跳过未加载的动物：' + a.type); return; }   // 第五轮：GLB 失败的动物缺席，不建旧模型
       rig.id = a.id;
       rig.type = a.type;
       const tScale = (D.animalTypes[a.type] && D.animalTypes[a.type].scale) || 1;
@@ -1239,7 +1090,7 @@ window.Scene = (function () {
       if (a.type === 'cat') {
         /* 猫散养：全场自由跑，也会上屋顶；放牧中则直接生在放牧空地可见带里 */
         rig.zone = 'free';
-        if (a.grazing) rig.group.position.set(-7 + Math.random() * 14, 0, -34.5 + Math.random() * 2);
+        if (a.grazing) rig.group.position.set(-3.2 + Math.random() * 6.4, 0, -34.5 + Math.random() * 2);   // 第五轮：猫出生点收进放牧可见带（±3.2）
         else rig.group.position.set(-6 + Math.random() * 4, 0, 25 + Math.random() * 3);
       } else if (key) {
         const slots = penSlots(key, Math.max(1, typeCount[a.type]));
@@ -1259,6 +1110,7 @@ window.Scene = (function () {
 
     if (state.dog.owned) {
       dogRig = buildDog(0.72);   // 狗小（v12 比例：约牛的 0.55，之前 0.48 太小看不见）
+      if (dogRig) {   // 第五轮：GLB 失败时狗缺席
       dogRig.group.position.set(10, 0, 25);
       dogRig.walkSpeed = 0.95;            // 小狗比马更活跃，走动明显
       dogRig.id = 'dog'; dogRig.type = 'dog'; dogRig.baseScale = 0.48; dogRig.baseY = 0;
@@ -1270,10 +1122,12 @@ window.Scene = (function () {
       dogRig.group.traverse(o => { if (o.isMesh) { o.userData.pickType = 'animal'; o.userData.animalId = 'dog'; pickables.push(o); } });
       addAnimalHitbox(dogRig.group, 'dog', [0.9, 1.1, 0.9]);   // 手机端点选容错
       groups.animals.add(dogRig.group);
+      }   // 第五轮守卫结束
     }
 
     if (state.horse.owned) {
       horseRig = buildHorse(1.35);   // 马高大（v12 比例：比牛略高）
+      if (horseRig) {   // 第五轮：GLB 失败时马缺席
       horseRig.group.position.set(-6, 0, 26);
       horseRig.id = 'horse'; horseRig.type = 'horse'; horseRig.baseScale = 1.13; horseRig.baseY = 0;
       horseRig.zone = 'free';
@@ -1290,6 +1144,7 @@ window.Scene = (function () {
         horseRig.group.add(riderRig);
       }
       groups.animals.add(horseRig.group);
+      }   // 第五轮守卫结束
     }
 
     spawnPets(state);
@@ -1522,8 +1377,8 @@ window.Scene = (function () {
       /* 放牧触发：放牧中 + 还在栏里 → 从北门走出去；收回 + 还在草地 → 走回栏里 */
       if (rig.grazing && rig.zone === 'pen' && rig.penKey && GRAZE_ROUTES[rig.penKey]) {
         const pts = GRAZE_ROUTES[rig.penKey].map(p => ({ x: p[0], z: p[1] }));
-        const M = LAYOUT.meadow;
-        pts.push({ x: M.minX + 9.5 + Math.random() * (M.maxX - M.minX - 19), z: M.minZ + 3.5 + Math.random() * (M.maxZ - M.minZ - 4.5) });   // 落点收进默认镜头可见带
+        const B = meadowBandFor(rig);
+        pts.push({ x: B.minX + Math.random() * (B.maxX - B.minX), z: B.minZ + Math.random() * (B.maxZ - B.minZ) });   // 第五轮：落点用同款按体型分带（旧代码是 ±5.5，羊会落在 -4.56 半出画面）
         rig.trip = { kind: 'graze', pts: pts, leg: 0, speed: 2.6 };
         rig.eating = 0;
       } else if (!rig.grazing && rig.zone === 'meadow' && rig.penKey) {
@@ -2459,13 +2314,13 @@ window.Scene = (function () {
     scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xdcefff, 85, 200);   // 远处轻微空气雾，增强景深
     gradientMap = makeGradientMap();
-    camera = new THREE.PerspectiveCamera(50, 1, 0.1, 220);   // 视野 50°：新牧场栏杆更宽（32 格），38° 时栏边动物会出画，要拖镜头才找得到
+    camera = new THREE.PerspectiveCamera(40, 1, 0.1, 220);   // 第五轮：视野 40° + 镜头拉近，放牧动物够大（验收：牛≥180px/羊≥90px/鸡≥70px/猫≥45px，探针单位）；栏杆/建筑靠拖镜头看。38° 牛头顶边、42° 鸡差几 px，取中间值
     clock = new THREE.Clock();
     raycaster = new THREE.Raycaster();
 
     const C = LAYOUT.camOffset;
     camera.position.set(C.x, C.y, C.z);
-    camera.lookAt(0, -2.2, 1.5);
+    camera.lookAt(0, -2.2, -14);   // 第五轮：默认注视点移到放牧空地
 
     groups.terrain = new THREE.Group();
     groups.field = new THREE.Group();
@@ -2476,9 +2331,9 @@ window.Scene = (function () {
     groups.structures = new THREE.Group();
     scene.add(groups.terrain, groups.field, groups.buildings, groups.props, groups.animals, groups.structures);
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0xd8e8c8, 0.30);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0xd8e8c8, 0.32);   // 第五轮：亮度 +0.02
     scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xfff3d8, 0.78);
+    const dir = new THREE.DirectionalLight(0xfff3d8, 0.82);   // 第五轮：亮度 +0.04
     dir.position.set(16, 30, 14);
     dir.castShadow = true;
     dir.shadow.mapSize.set(2048, 2048);
@@ -2487,7 +2342,7 @@ window.Scene = (function () {
     dir.shadow.camera.near = 1; dir.shadow.camera.far = 80;
     dir.shadow.bias = -0.0012;
     scene.add(dir);
-    const amb = new THREE.AmbientLight(0xffffff, 0.05);
+    const amb = new THREE.AmbientLight(0xffffff, 0.06);   // 第五轮：亮度 +0.01
     scene.add(amb);
     groups.light = dir;
     groups.hemi = hemi;
@@ -2676,7 +2531,7 @@ window.Scene = (function () {
       }
       drawWeatherFX(dt);
       const cam = (camMode === 'field' && !(currentState && currentState.horse.riding)) ? LAYOUT.camField : LAYOUT.camOffset;
-      const look = camMode === 'field' ? [cam.lookX, cam.lookY, cam.lookZ] : [0, -2.2, 1.5];
+      const look = camMode === 'field' ? [cam.lookX, cam.lookY, cam.lookZ] : [0, -2.2, -14];   // 第五轮：默认注视点移到放牧空地
       if (currentState && currentState.horse.riding && camera) {
         camera.position.x = LAYOUT.camOffset.x + Math.sin(anim.t * 0.4) * 1.2;
         camera.lookAt(0, -2.2, 2.5);

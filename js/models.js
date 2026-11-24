@@ -51,7 +51,7 @@
 
   function gradientMap() {
     if (!RAMP.scene) {
-      RAMP.scene = makeRamp([90, 175, 255]);   // 第四轮：三档明暗（卡通配方）
+      RAMP.scene = makeRamp([70, 160, 255]);   // 第五轮：再加一档对比/饱和（原 90/175/255）
       RAMP.icon = makeRamp([170, 208, 238, 255]);
     }
     return RAMP.scene;
@@ -576,93 +576,9 @@
     horse: headHorse, dog: headDog, duck: headDuck, cat: headCat, llama: headLlama
   };
 
-  /* ======================= 物种：整只（短圆四肢 + 头大身小） ======================= */
+  /* ======================= 物种：整只（短圆四肢 + 头大身小） =======================
+   *  第五轮：只剩兔子（anjela）与猫（无 GLB）保留代码版；其余 7 种已删，见 BODIES 注释。 */
 
-  function animalChicken() {
-    var g = new THREE.Group();
-    var rig = newRig(g, 'chicken');
-    rig.parts.legs = [birdLeg(g, -0.16, 0.2, 0.055, 0xf59a1a), birdLeg(g, 0.16, 0.2, 0.055, 0xf59a1a)];
-    var body = part(g, sph(0.5, 22), toon(0xfffbf2), [0, 0.7, -0.02], [1.0, 1.0, 1.05]);
-    outlineOf(body, 1.04);
-    rig.parts.body = body;
-    // 翅膀：确认稿是橘色翅膀（原来近白色，糊在白身上）
-    rig.parts.wings = birdWings(g, { r: 0.5, y: 0.72, z: -0.04, color: 0xf2a65a });
-    // 尾羽：两枚圆润上翘
-    outlineOf(part(g, sph(0.2, 12), toon(0xffe9cc), [0, 0.96, -0.42], [0.8, 1.15, 0.9], [-0.7, 0, 0]), 1.05);
-    rig.parts.tail = part(g, sph(0.17, 12), toon(0xffe9cc), [0, 1.12, -0.52], [0.72, 0.9, 0.8], [-0.9, 0, 0]);
-    outlineOf(rig.parts.tail, 1.05);
-    attachHead(g, rig, headChicken, 0, 1.14, 0.08);
-    return rig;
-  }
-  function animalDuck() {
-    var g = new THREE.Group();
-    var rig = newRig(g, 'duck');
-    rig.parts.legs = [birdLeg(g, -0.17, 0.16, 0.06, 0xf59a1a), birdLeg(g, 0.17, 0.16, 0.06, 0xf59a1a)];
-    var body = part(g, sph(0.54, 22), toon(0xfff8e6), [0, 0.64, -0.02], [1.02, 0.96, 1.1]);
-    outlineOf(body, 1.04, 0.92);
-    rig.parts.body = body;
-    // 翅膀：幼年短圆贴体，成年沿体侧向后包住躯干
-    rig.parts.wings = birdWings(g, { r: 0.54, y: 0.66, z: -0.04, color: 0xfff2da });
-    rig.parts.tail = part(g, sph(0.22, 12), toon(0xffeed2), [0, 0.84, -0.5], [0.85, 0.9, 0.95], [-0.55, 0, 0]);
-    outlineOf(rig.parts.tail, 1.05);
-    attachHead(g, rig, headDuck, 0, 1.06, 0.12);
-    return rig;
-  }
-  function animalCow() {
-    var g = new THREE.Group();
-    var rig = newRig(g, 'cow');
-    // 四脚站立：腿加长加粗，身体离地（原来腿短、身体贴地像个白球）
-    rig.parts.legs = fourLegs(g, 0.55, 0.15, 0xfffcf7, { x: 0.38, z: 0.5, footColor: 0x4a4657 });
-    // 躯干：横向拉长的圆桶身（不再是圆球），头颈前伸、与身体分出剪影
-    var body = part(g, sph(0.82, 24), toon(0xfffcf7), [0, 1.18, 0], [0.92, 0.88, 1.32]);
-    outlineOf(body, 1.035);
-    rig.parts.body = body;
-    // 黑斑：贴合体表的圆润块（避开头部），真黑（0x221e24，浅灰会被色阶洗掉）
-    [[0.42, 1.42, 0.42, 0.36], [-0.46, 1.24, -0.32, 0.32], [0.24, 1.62, -0.52, 0.28],
-     [-0.22, 1.0, 0.66, 0.26], [0.12, 1.64, 0.5, 0.22], [-0.5, 1.5, 0.3, 0.2]].forEach(function (p) {
-      part(g, sph(p[3], 14), toon(0x221e24), [p[0], p[1], p[2]], [1, 0.8, 1]);
-    });
-    // 短脖
-    part(g, cyl(0.32, 0.42, 0.46, 14), toon(0xfffcf7), [0, 1.56, 0.52], null, [0.45, 0, 0]);
-    // 棕色项圈 + 金色铃铛（确认稿特征，铃铛加大）
-    var collar = part(g, torus(0.34, 0.06, Math.PI * 2), toon(0x8d5a2b), [0, 1.6, 0.6], null, [0.5, 0, 0]);
-    outlineOf(collar, 1.1, 0.6);
-    part(g, sph(0.14, 12), toon(0xf0c04a), [0, 1.44, 0.86], [1, 1, 1]);
-    part(g, sph(0.05, 8), toon(0x8d5a2b), [0, 1.34, 0.9], [1, 0.6, 0.6]);
-    // 乳房
-    part(g, sph(0.24, 14), toon(0xf9bcc8), [0, 0.72, -0.3], [1.1, 0.72, 0.9]);
-    var tail = new THREE.Group();
-    tail.position.set(0, 1.55, -1.05);
-    g.add(tail);
-    part(tail, cyl(0.035, 0.05, 0.55, 8), toon(0xfffcf7), [0, -0.26, 0]);
-    part(tail, sph(0.13, 12), toon(0x221e24), [0, -0.56, 0.03]);
-    rig.parts.tail = tail;
-    attachHead(g, rig, headCow, 0, 1.92, 0.98);
-    return rig;
-  }
-  function animalSheep() {
-    var g = new THREE.Group();
-    var rig = newRig(g, 'sheep');
-    rig.parts.legs = fourLegs(g, 0.26, 0.105, 0xe8d8c4, { x: 0.32, z: 0.42, footColor: 0xd6c3ab });
-    var body = part(g, sph(0.62, 22), toon(0xfffaf0), [0, 0.78, 0], [0.9, 0.86, 1.06]);
-    outlineOf(body, 1.035, 0.9);
-    rig.parts.body = body;
-    // 羊毛团：两层共 20 团，整个身体就是毛球（确认稿：全身毛茸茸）
-    [[0, 1.28, 0.1, 0.34], [0.38, 1.14, 0.26, 0.28], [-0.38, 1.14, 0.26, 0.28],
-     [0.5, 1.04, -0.3, 0.29], [-0.5, 1.04, -0.3, 0.29], [0, 1.24, -0.54, 0.3],
-     [0.44, 0.82, 0.54, 0.25], [-0.44, 0.82, 0.54, 0.25], [0, 0.64, 0.7, 0.24],
-     [0.56, 0.78, -0.1, 0.24], [-0.56, 0.78, -0.1, 0.24],
-     [0.2, 1.38, -0.2, 0.26], [-0.2, 1.38, -0.2, 0.26], [0.58, 0.98, 0.2, 0.24],
-     [-0.58, 0.98, 0.2, 0.24], [0, 1.0, -0.72, 0.26], [0.3, 0.66, -0.5, 0.22],
-     [-0.3, 0.66, -0.5, 0.22], [0.62, 0.9, -0.45, 0.22], [-0.62, 0.9, -0.45, 0.22]].forEach(function (p) {
-      // 白色羊毛团补描边：剪影由羊毛团构成，不描边会和浅底糊在一起
-      outlineOf(part(g, sph(p[3], 16), toon(0xfffdf6), [p[0], p[1], p[2]]), 1.05, 0.58);
-    });
-    rig.parts.tail = part(g, sph(0.2, 12), toon(0xfffdf6), [0, 0.94, -0.86]);
-    outlineOf(rig.parts.tail, 1.05, 0.58);
-    attachHead(g, rig, headSheep, 0, 1.22, 0.5);
-    return rig;
-  }
   function animalRabbit() {
     var g = new THREE.Group();
     var rig = newRig(g, 'anjela');
@@ -700,60 +616,6 @@
     attachHead(g, rig, headRabbit, 0, 1.12, 0.16);
     return rig;
   }
-  function animalHorse() {
-    var g = new THREE.Group();
-    var rig = newRig(g, 'horse');
-    var baby = isBaby();
-    rig.parts.legs = fourLegs(g, 0.6, 0.13, 0xa86a32, { x: 0.36, z: baby ? 0.44 : 0.6, footColor: 0x6b4522 });
-    // 成年躯干：前后拉长、上下略压扁（马身修长）；幼年保持圆滚滚
-    var body = part(g, sph(0.78, 24), toon(0xa86a32), [0, 1.32, 0],
-      baby ? [0.86, 0.9, 1.06] : [0.8, 0.88, 1.6]);
-    outlineOf(body, 1.035, 0.52);
-    rig.parts.body = body;
-    var neckZ = baby ? 0.5 : 0.68;
-    // 长脖（加长）
-    part(g, cyl(0.3, 0.42, 0.9, 14), toon(0xa86a32), [0, 1.92, neckZ], null, [0.42, 0, 0]);
-    // 鬃毛：沿脖根的长鬃，7 块由上到下渐小 + 两侧垂鬃
-    [[0, 2.18, 0.36, 0.25], [0, 2.1, 0.14, 0.24], [0, 1.94, -0.04, 0.23],
-     [0, 1.74, -0.1, 0.22], [0, 1.54, -0.12, 0.21], [0, 1.36, -0.12, 0.19],
-     [0.3, 1.9, 0.3, 0.16], [-0.3, 1.9, 0.3, 0.16]].forEach(function (p) {
-      part(g, sph(p[3], 12), toon(0x4a2e18), [p[0], p[1], p[2] + (baby ? 0 : 0.06)], [0.78, 0.66, 1.45]);
-    });
-    // 尾巴：更长更飘
-    var tail = new THREE.Group();
-    tail.position.set(0, 1.62, baby ? -0.62 : -1.08);
-    g.add(tail);
-    part(tail, cyl(0.05, 0.07, 0.7, 8), toon(0xa8683a), [0, -0.32, -0.08], null, [-0.25, 0, 0]);
-    part(tail, sph(0.15, 12), toon(0x4a2e18), [0, -0.66, -0.24], [0.85, 1.5, 0.85], [0, 0, -0.2]);
-    part(tail, sph(0.12, 12), toon(0x4a2e18), [0, -0.9, -0.36], [0.8, 1.3, 0.8], [0, 0, -0.3]);
-    rig.parts.tail = tail;
-    attachHead(g, rig, headHorse, 0, 2.42, baby ? 0.62 : 0.9);
-    return rig;
-  }
-  function animalDog() {
-    var g = new THREE.Group();
-    var rig = newRig(g, 'dog');
-    rig.parts.legs = fourLegs(g, 0.3, 0.095, 0xeeb95e, { x: 0.28, z: 0.38, footColor: 0xf7dcae });
-    var body = part(g, sph(0.52, 22), toon(0xeeb95e), [0, 0.72, 0], [0.9, 0.86, 1.32]);
-    outlineOf(body, 1.035, 0.58);
-    rig.parts.body = body;
-    // 胸前浅色
-    outlineOf(part(g, sph(0.26, 14), toon(0xfff4e2), [0, 0.64, 0.42], [0.86, 1.0, 0.7]), 1.05, 0.8);
-    // 胸前绒毛：三团浅色毛
-    [[-0.14, 0.86, 0.44, 0.13], [0.14, 0.86, 0.44, 0.13], [0, 0.72, 0.5, 0.14]].forEach(function (p) {
-      outlineOf(part(g, sph(p[3], 12), toon(0xfff4e2), [p[0], p[1], p[2]]), 1.05, 0.86);
-    });
-    // 上翘卷尾（圆润，尾尖浅色）
-    var tail = new THREE.Group();
-    tail.position.set(0, 0.98, -0.62);
-    g.add(tail);
-    part(tail, cyl(0.055, 0.065, 0.4, 8), toon(0xeeb95e), [0, 0.12, -0.05], null, [-0.55, 0, 0]);
-    part(tail, sph(0.13, 12), toon(0xe0aa4e), [0, 0.3, -0.16], [0.9, 1.0, 1.1]);
-    part(tail, sph(0.09, 12), toon(0xfff4e2), [0, 0.38, -0.21], [0.9, 1.0, 1.1]);
-    rig.parts.tail = tail;
-    attachHead(g, rig, headDog, 0, 1.1, 0.34);
-    return rig;
-  }
   function animalCat() {
     var g = new THREE.Group();
     var rig = newRig(g, 'cat');
@@ -788,43 +650,11 @@
     attachHead(g, rig, headCat, 0, baby ? 1.0 : 1.52, baby ? 0.28 : 0.5);
     return rig;
   }
-  function animalLlama() {
-    var g = new THREE.Group();
-    var rig = newRig(g, 'llama');
-    var wool = 0xfffefa;
-    rig.parts.legs = fourLegs(g, 0.36, 0.1, 0xf2ece2, { x: 0.3, z: 0.42, footColor: 0xdcd4c8 });
-    var body = part(g, sph(0.66, 22), toon(wool), [0, 0.94, 0], [0.88, 0.9, 1.12]);
-    outlineOf(body, 1.035, 0.92);
-    rig.parts.body = body;
-    // 蓬松毛团（14 团）
-    [[0, 1.4, 0.16, 0.3], [0.42, 1.28, 0.24, 0.26], [-0.42, 1.28, 0.24, 0.26],
-     [0.5, 1.12, -0.3, 0.26], [-0.5, 1.12, -0.3, 0.26], [0, 1.34, -0.5, 0.27],
-     [0.44, 0.9, 0.5, 0.24], [-0.44, 0.9, 0.5, 0.24], [0, 0.72, 0.66, 0.23],
-     [0.2, 1.5, -0.3, 0.24], [-0.2, 1.5, -0.3, 0.24], [0.56, 1.0, 0.1, 0.22],
-     [-0.56, 1.0, 0.1, 0.22], [0, 1.1, -0.68, 0.24]].forEach(function (p) {
-      outlineOf(part(g, sph(p[3], 16), toon(wool), [p[0], p[1], p[2]]), 1.05, 0.58);
-    });
-    // 长脖子（圆润柱体 + 脖根绒毛）：成年再拉长一档，幼年保留短脖的幼态
-    var baby = isBaby();
-    var neckLen = baby ? 0.86 : 1.35;
-    var neckY = baby ? 1.68 : 1.98;
-    outlineOf(part(g, cyl(0.2, 0.27, neckLen, 14), toon(wool), [0, neckY, 0.38], null, [0.3, 0, 0]), 1.05, 0.58);
-    outlineOf(part(g, sph(0.25, 14), toon(wool), [0, baby ? 1.42 : 1.5, 0.34], [1.1, 0.85, 1.0]), 1.05, 0.58);
-    // 脖子绒毛：沿脖颈两侧 8 团（确认稿：脖子也是毛茸茸的，不是光杆）
-    [[-0.22, 2.3, 0.5, 0.16], [0.22, 2.3, 0.5, 0.16], [-0.24, 2.0, 0.44, 0.17],
-     [0.24, 2.0, 0.44, 0.17], [-0.24, 1.7, 0.38, 0.17], [0.24, 1.7, 0.38, 0.17],
-     [0, 2.42, 0.42, 0.15], [0, 1.56, 0.32, 0.16]].forEach(function (p) {
-      outlineOf(part(g, sph(p[3], 12), toon(wool), [p[0], p[1], p[2]]), 1.05, 0.58);
-    });
-    rig.parts.tail = part(g, sph(0.2, 12), toon(wool), [0, 1.04, -0.76]);
-    outlineOf(rig.parts.tail, 1.05, 0.58);
-    attachHead(g, rig, headLlama, 0, baby ? 2.14 : 2.62, baby ? 0.58 : 0.66);
-    return rig;
-  }
 
+  /* 第五轮：只剩兔子（anjela）与猫没有 GLB，它们是现行唯一模型（不是回退）。
+   *  其余 7 种的代码拼全身模型已删除 —— 有 GLB 的种类只用 GLB，GLB 失败时不建动物。 */
   var BODIES = {
-    chicken: animalChicken, cow: animalCow, sheep: animalSheep, anjela: animalRabbit,
-    horse: animalHorse, dog: animalDog, duck: animalDuck, cat: animalCat, llama: animalLlama
+    anjela: animalRabbit, cat: animalCat
   };
 
   /* ======================= 道具 3D 图标 ======================= */
@@ -1383,7 +1213,9 @@
    *   Quaternius 兔是双足拟人拿胡萝卜、Gobkit 兔是棕色野兔）、
    *   三花猫（Quaternius 猫是灰色方块、卡通猫只有头、
    *   Kenney 猫缺 colormap 贴图无法用）。
-   * 加载失败 / 模型缺失时自动回退代码拼模型，绝不白屏。
+   * 第五轮：加载失败 / 模型缺失时不再回退代码拼模型 —— 该动物缺席，
+ *   主界面显示可见提示（模型加载失败，请检查网络后刷新）；
+ *   鸡背漂白见 fixChickenTexture（贴图背部本身是纯黑，眼睛在另一块黑色 UV 区）。
    * height：该模型在 scale=1 时的目标包围盒高度（米制单位），
    *   与原代码拼模型实测高度一致，保证现有 scale / 爱心高度不变。
    * head：头像渲染取的头部高度带（包围盒高度的分数区间）。
@@ -1485,48 +1317,128 @@
     return out;
   }
 
-  /** 预加载全部 GLB（并行，单文件 12 秒超时即放弃该文件）。
-   *  永远 resolve、不 reject；失败的类型留在 glbCache 里标 ok:false，
-   *  调用方回退代码拼模型。 */
-  M.preloadGLB = function () {
+  var glbFailedList = [];   // 第五轮：重试后仍失败的 GLB 类型，主界面据此显示可见提示
+  var glbProgressCbs = [];
+  M.onGLBProgress = function (cb) { if (typeof cb === 'function') glbProgressCbs.push(cb); };
+  function glbProgress(done, total) {
+    glbProgressCbs.forEach(function (cb) { try { cb(done, total); } catch (e) {} });
+  }
+  /** 第五轮：鸡背漂白 —— 鸡贴图（512x512 调色板图集）背部就是纯黑，
+   *  但眼睛在同一张贴图的另一块黑色区域。实测 UV 分界（见 live-check-2026-11-24-round2）：
+   *  背部 u 0.78-0.90、眼睛 u 0.60-0.72（v 同为 0.66-0.75），所以只漂白背部矩形
+   *  u[0.76,0.92] x v[0.64,0.77] 内亮度 <120 的像素（改奶油白 255,251,242），眼睛留黑。
+   *  注意：贴图 flipY=false 时 canvas 像素坐标就是 (u*W, v*H)。在模板贴图上改一次，
+   *  所有克隆继承；assetgen 重渲染同样受益。 */
+  function fixChickenTexture(root) {
+    root.traverse(function (o) {
+      if (!o.isMesh || !o.material) return;
+      var mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(function (m) {
+        if (!m.map || !m.map.image) return;
+        try {
+          var img = m.map.image;
+          var c = document.createElement('canvas');
+          c.width = img.width; c.height = img.height;
+          var g = c.getContext('2d');
+          g.drawImage(img, 0, 0);
+          var d = g.getImageData(0, 0, c.width, c.height);
+          var x0 = Math.floor(c.width * 0.76), x1 = Math.ceil(c.width * 0.92);
+          var y0 = Math.floor(c.height * 0.64), y1 = Math.ceil(c.height * 0.77);
+          for (var y = y0; y < y1; y++) {
+            for (var x = x0; x < x1; x++) {
+              var i = (y * c.width + x) * 4;
+              var l = (d.data[i] + d.data[i + 1] + d.data[i + 2]) / 3;
+              if (l < 120) { d.data[i] = 255; d.data[i + 1] = 251; d.data[i + 2] = 242; }
+            }
+          }
+          g.putImageData(d, 0, 0);
+          var t2 = new THREE.CanvasTexture(c);
+          t2.flipY = m.map.flipY; t2.wrapS = m.map.wrapS; t2.wrapT = m.map.wrapT;
+          if (m.map.encoding !== undefined) t2.encoding = m.map.encoding;
+          m.map = t2;
+          m.needsUpdate = true;
+        } catch (e) { console.warn('[GLB] 鸡背漂白失败（不影响加载）', e); }
+      });
+    });
+  }
+  /** 第五轮：预加载全部 GLB（并行，单文件 12 秒超时、失败 2 秒后重试一次）。
+   *  永远 resolve、不 reject；重试后仍失败的类型留在 glbCache 里标 ok:false，
+   *  并记入 glbFailedList，由主界面向玩家显示可见提示。
+   *  关键改动（堵 9 秒竞态）：调用方（main.js）必须等本 promise 完成再建动物，
+   *  不再用 9 秒超时抢跑；动物只在 GLB 就绪后建造。 */
+  M.preloadGLB = function (onProgress) {
+    if (onProgress) M.onGLBProgress(onProgress);
     if (glbPromise) return glbPromise;
     glbPromise = new Promise(function (resolve) {
+      var keys = Object.keys(GLB_DEFS);
       if (!THREE.GLTFLoader) {
-        Object.keys(GLB_DEFS).forEach(function (t) { glbCache[t] = { ok: false, error: 'no GLTFLoader' }; });
+        keys.forEach(function (t) { glbCache[t] = { ok: false, error: 'no GLTFLoader' }; });
+        glbFailedList = keys.slice();
+        glbProgress(0, keys.length);
         resolve(glbCache);
         return;
       }
       var loader = new THREE.GLTFLoader();
-      var keys = Object.keys(GLB_DEFS);
       var done = 0;
-      function finishOne() { done++; if (done >= keys.length) resolve(glbCache); }
+      function finishOne() {
+        done++;
+        glbProgress(done, keys.length);
+        if (done >= keys.length) resolve(glbCache);
+      }
       keys.forEach(function (type) {
         var def = GLB_DEFS[type];
-        var settled = false;
-        function settle() { if (!settled) { settled = true; finishOne(); } }
-        setTimeout(settle, 12000);
-        try {
-          loader.load(GLB_BASE + def.file, function (gltf) {
-            if (settled) return;
-            try {
-              toonifyGLB(gltf.scene);
-              glbCache[type] = { ok: true, scene: gltf.scene, clips: gltf.animations || [] };
-            } catch (e) { glbCache[type] = { ok: false, error: String(e && e.message || e) }; }
-            settle();
-          }, undefined, function () {
-            if (settled) return;
-            glbCache[type] = { ok: false, error: 'load failed: ' + def.file };
-            settle();
-          });
-        } catch (e) {
-          if (!settled) glbCache[type] = { ok: false, error: String(e && e.message || e) };
-          settle();
+        var decided = false;   // 该类型已有定论（成功或最终失败），后续任何回调都忽略
+        var tried = 0;
+        function fail(msg) {
+          if (decided) return;
+          decided = true;
+          glbCache[type] = { ok: false, error: msg };
+          if (glbFailedList.indexOf(type) < 0) glbFailedList.push(type);
+          finishOne();
         }
+        function attempt() {
+          tried++;
+          var timer = setTimeout(function () {
+            if (decided) return;
+            if (tried < 2) setTimeout(attempt, 2000);   // 第一次超时：2 秒后重试一次
+            else fail('load timeout: ' + def.file);
+          }, 12000);
+          try {
+            loader.load(GLB_BASE + def.file, function (gltf) {
+              if (decided) return;
+              clearTimeout(timer);
+              decided = true;
+              try {
+                toonifyGLB(gltf.scene);
+                if (type === 'chicken') fixChickenTexture(gltf.scene);
+                glbCache[type] = { ok: true, scene: gltf.scene, clips: gltf.animations || [] };
+              } catch (e) {   // decided 已为 true：不能走 fail()（它会被 decided 挡住导致永远不 resolve）
+                glbCache[type] = { ok: false, error: String(e && e.message || e) };
+                if (glbFailedList.indexOf(type) < 0) glbFailedList.push(type);
+                finishOne();
+                return;
+              }
+              finishOne();
+            }, undefined, function () {
+              if (decided) return;
+              clearTimeout(timer);
+              if (tried < 2) setTimeout(attempt, 2000);
+              else fail('load failed: ' + def.file);
+            });
+          } catch (e) {
+            clearTimeout(timer);
+            if (decided) return;
+            if (tried < 2) setTimeout(attempt, 2000);
+            else fail(String(e && e.message || e));
+          }
+        }
+        attempt();
       });
     });
     return glbPromise;
   };
-
+  /** 第五轮：重试后仍失败的 GLB 类型列表（[] 表示全部就绪），主界面据此显示提示。 */
+  M.glbFailed = function () { return glbFailedList.slice(); };
   M.glbReady = function (type) { return !!(glbCache[type] && glbCache[type].ok); };
   M.glbStatus = function () {
     var out = {};
@@ -1594,18 +1506,25 @@
     } catch (e) { return null; }
   };
 
+  /** 第五轮：GLB 是唯一模型来源。有 GLB 的种类（牛/羊/鸡/马/狗/鸭/羊驼/松鼠）
+   *  只建 GLB；GLB 未就绪返回 null（调用方跳过该动物 + 界面显示可见提示），
+   *  绝不再回退代码拼模型。兔子（anjela）与猫没有 GLB，走保留的代码版。 */
   M.buildAnimal = function (type, scale, age) {
-    if (glbCache[type] && glbCache[type].ok) {
-      try {
-        var grig = buildGLBRig(type);
-        if (asAge(age) === 'baby') { grig.group.scale.setScalar((scale || 1) * 0.62); grig.baby = true; }
-        else grig.group.scale.setScalar(scale || 1);
-        grig.type = type;
-        grig.age = asAge(age);
-        return grig;
-      } catch (e) { console.warn('[GLB] 构建失败，回退代码模型：' + type, e); }
+    if (GLB_DEFS[type]) {
+      if (glbCache[type] && glbCache[type].ok) {
+        try {
+          var grig = buildGLBRig(type);
+          if (asAge(age) === 'baby') { grig.group.scale.setScalar((scale || 1) * 0.62); grig.baby = true; }
+          else grig.group.scale.setScalar(scale || 1);
+          grig.type = type;
+          grig.age = asAge(age);
+          return grig;
+        } catch (e) { console.warn('[GLB] 构建失败，该动物跳过：' + type, e); return null; }
+      }
+      return null;   // GLB 未加载成功：不要无声变回旧模型
     }
-    var fn = BODIES[type] || BODIES.chicken;
+    var fn = BODIES[type];
+    if (!fn) { console.warn('[GLB] 未知动物类型：' + type); return null; }
     var prev = curAge;
     curAge = asAge(age);
     var rig = fn();
@@ -1685,10 +1604,7 @@
     // 底部导航图标：不走生成器（上轮教训：生成器产出的简版图标是倒退）。
     // 9 张图标手工从确认稿 ui-icons 图裁切（tools/crop-nav-icons.py），
     // manifest 里的 nav_* 条目由渲染脚本补写，assetList 不再产出 nav_*。
-    // 素材总览图
-    list.push({ kind: 'sheet', path: 'assets/overview/sheet.png', w: 2300, h: 1500 });
-    // 三视图总览：由页面把上面已渲染的 54 张三视图拼成一张「每列一只动物」的对比大图
-    list.push({ kind: 'viewsheet', path: 'assets/overview/views_sheet.png', w: 2560, h: 1820 });
+    // 第五轮：素材总览图（sheet.png / views_sheet.png）已删除，不再生成——头行是旧代码拼头像残留。
     return list;
   };
 
@@ -1719,10 +1635,15 @@
     var scene = new THREE.Scene();
     // 头像：有 GLB 就用 GLB 全身 + 头部带取景（见下方 focus），没有则用代码拼头像；
     //   buildHead 保持代码版，只供素材总览图 sheet.png 的头行使用。
+    var _rig = item.kind === 'rig' ? M.buildAnimal(item.animal, 1, item.age) : null;
     var obj = item.kind === 'head'
       ? ((glbCache[item.animal] && glbCache[item.animal].ok) ? M.buildAnimal(item.animal, 1).group : M.buildHead(item.animal))
-      : item.kind === 'rig' ? M.buildAnimal(item.animal, 1, item.age).group
+      : item.kind === 'rig' ? (_rig ? _rig.group : null)
         : M.buildTool(item.key);
+    if (!obj) {   // 第五轮：GLB 未就绪时 buildAnimal 返回 null，渲染工具跳过该项（透明 PNG），不崩
+      console.warn('[assetgen] GLB 未就绪，跳过渲染：' + (item.animal || item.key));
+      return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    }
 
     var bb = new THREE.Box3().setFromObject(obj);
     var c = bb.getCenter(new THREE.Vector3());

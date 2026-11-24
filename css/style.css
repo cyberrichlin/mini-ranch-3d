@@ -186,17 +186,20 @@ p { margin: 0; }
   pointer-events: none;
   background: radial-gradient(120% 90% at 50% 42%, rgba(255, 255, 255, .06) 0%, rgba(40, 34, 20, .05) 62%, rgba(28, 24, 14, .3) 100%);
 }
-.scene-badge {
-  position: absolute; top: 4px; left: 10px;
-  padding: 2px 9px;
-  font-size: 10px;   /* 第三轮收小、上移：放牧动物在画面顶部活动，别挡住它们 */
-  border-radius: 999px;
-  background: rgba(255, 253, 247, .78);
-  color: var(--text-soft);
-  border: 1px solid rgba(255, 255, 255, .6);
-  box-shadow: var(--shadow-s);
-  backdrop-filter: blur(6px);
-  pointer-events: none;
+/* 第五轮：GLB 模型加载失败的可见横幅（失败的动物缺席，不再无声回退旧模型） */
+#glb-fail-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 12px;
+  background: #b3261e; color: #fff;
+  font-size: 13px; line-height: 1.4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+}
+#glb-fail-banner button {
+  flex: none;
+  padding: 4px 12px;
+  border: 1px solid rgba(255, 255, 255, .7); border-radius: 999px;
+  background: transparent; color: #fff; font-size: 12px;
 }
 
 /* 视图容器：牧场视图透出 3D 场景，其余视图为纸感面板 */
@@ -376,6 +379,37 @@ button.mini {
     radial-gradient(circle at 12% 20%, rgba(169, 162, 154, .85) 0 2.5px, transparent 3.5px),
     linear-gradient(180deg, #9aa061, #7d8148);
 }
+/* 荒地 4 种轮换（第五轮）：w0 用上面 .plot.waste 的排布，w1/w2/w3 换位置，24 格不再一模一样 */
+.plot.waste.w1 {
+  background:
+    radial-gradient(circle at 30% 70%, rgba(74, 139, 44, .95) 0 5px, transparent 6px),
+    radial-gradient(circle at 75% 30%, rgba(74, 139, 44, .9) 0 6px, transparent 7px),
+    radial-gradient(circle at 55% 85%, rgba(90, 150, 60, .9) 0 5px, transparent 6px),
+    radial-gradient(circle at 15% 40%, rgba(74, 139, 44, .85) 0 4px, transparent 5px),
+    radial-gradient(circle at 70% 75%, rgba(169, 162, 154, .95) 0 3px, transparent 4px),
+    radial-gradient(circle at 20% 15%, rgba(169, 162, 154, .85) 0 2.5px, transparent 3.5px),
+    linear-gradient(180deg, #9aa061, #7d8148);
+}
+.plot.waste.w2 {
+  background:
+    radial-gradient(circle at 60% 25%, rgba(74, 139, 44, .95) 0 6px, transparent 7px),
+    radial-gradient(circle at 25% 55%, rgba(74, 139, 44, .9) 0 5px, transparent 6px),
+    radial-gradient(circle at 80% 60%, rgba(90, 150, 60, .9) 0 5px, transparent 6px),
+    radial-gradient(circle at 40% 15%, rgba(74, 139, 44, .85) 0 4px, transparent 5px),
+    radial-gradient(circle at 15% 80%, rgba(169, 162, 154, .95) 0 3px, transparent 4px),
+    radial-gradient(circle at 65% 45%, rgba(169, 162, 154, .85) 0 2.5px, transparent 3.5px),
+    linear-gradient(180deg, #9aa061, #7d8148);
+}
+.plot.waste.w3 {
+  background:
+    radial-gradient(circle at 45% 35%, rgba(74, 139, 44, .95) 0 5px, transparent 6px),
+    radial-gradient(circle at 70% 75%, rgba(74, 139, 44, .9) 0 6px, transparent 7px),
+    radial-gradient(circle at 20% 60%, rgba(90, 150, 60, .9) 0 4px, transparent 5px),
+    radial-gradient(circle at 85% 20%, rgba(74, 139, 44, .85) 0 5px, transparent 6px),
+    radial-gradient(circle at 30% 25%, rgba(169, 162, 154, .95) 0 3px, transparent 4px),
+    radial-gradient(circle at 55% 85%, rgba(169, 162, 154, .85) 0 2.5px, transparent 3.5px),
+    linear-gradient(180deg, #9aa061, #7d8148);
+}
 /* 已耕：浅黄褐 + 一道道垄沟 */
 .plot.plowed {
   background:
@@ -400,7 +434,7 @@ button.mini {
     radial-gradient(circle at 25% 30%, rgba(255, 255, 255, .3) 0 2px, transparent 3px),
     radial-gradient(circle at 70% 65%, rgba(255, 255, 255, .24) 0 2.5px, transparent 3.5px),
     radial-gradient(circle at 55% 20%, rgba(255, 255, 255, .22) 0 1.8px, transparent 2.8px),
-    linear-gradient(180deg, #c09a72, #a87f58);
+    linear-gradient(180deg, #c6a37a, #ad8a61);
 }
 .plot .pi { font-size: 19px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .18)); }
 /* 土里的作物图标：幼苗 / 生长 / 开花 / 结果各阶段按作物品种绘制，尺寸统一由样式控制 */
@@ -423,9 +457,9 @@ button.mini {
 }
 @keyframes readyPulse { 0%,100% { box-shadow: 0 0 0 2px rgba(255,222,150,.45), var(--shadow-s) } 50% { box-shadow: 0 0 0 5px rgba(255,222,150,.25), var(--shadow-s) } }
 .plot.sel { border-color: #fff; box-shadow: 0 0 0 3px var(--accent), var(--shadow); transform: translateY(-2px); }
-/* 施肥土地：浅暖棕 + 黑色芝麻状小点，与普通土地明显区分 */
-.plot.fert { background: linear-gradient(180deg, #9a6b3f, #7d5633); border-color: rgba(38, 26, 15, .6); }
-.plot.wet.fert { background: linear-gradient(180deg, #8a6742, #6f5238); }
+/* 施肥土地（第五轮）：浅奶茶色 + 黑色芝麻状小点，不许巧克力色（原 #9a6b3f 太深） */
+.plot.fert { background: linear-gradient(180deg, #c8a97e, #b3906a); border-color: rgba(90, 72, 44, .5); }
+.plot.wet.fert { background: linear-gradient(180deg, #c2a37c, #ab8a64); }   /* 第五轮：湿土+施肥同样浅奶茶色 */
 .plot.fert::before {
   content: '';
   position: absolute; inset: 0; pointer-events: none;
@@ -441,6 +475,12 @@ button.mini {
   position: absolute; right: 4px; bottom: 2px;
   font-size: 9px; letter-spacing: 1px; color: #140f0a;
   text-shadow: 0 0 2px rgba(255, 255, 255, .35);
+}
+/* 第五轮：浇过水的地块左下角一滴水珠（与施肥黑点区分开） */
+.plot .wet-dot {
+  position: absolute; left: 4px; bottom: 2px;
+  font-size: 10px; line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25));
 }
 
 .seed-row { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -528,13 +568,31 @@ button.mini {
 .seed-bag { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* ------------------------------ 矿洞 ------------------------------ */
+/* 矿场卡片（第五轮新样式）：岩层深灰底 + 左侧金色矿脉边，与旧白卡片拉开区别 */
 .mine-card {
   display: flex; flex-direction: column; gap: 8px;
   padding: 12px 14px;
   border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(246, 240, 228, .9));
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #4a4640, #3a3631);
+  border: 1px solid #57524a;
+  border-left: 5px solid #d9a441;
   box-shadow: var(--shadow-s);
+  color: #f2ede4;
+}
+.mine-card .note { color: #d8d2c4; }
+.mine-card .kv span { color: #c9c2b2; }
+.mine-card .kv b { color: #fff3d6; }
+.mine-card .btn.primary { background: linear-gradient(180deg, #e8b64c, #cf9a2e); border-color: #a87a1c; color: #3a2a08; }
+/* 最深进度条：金色填充，深灰轨道 */
+.mc-bar {
+  height: 8px; border-radius: 999px; overflow: hidden;
+  background: rgba(0, 0, 0, .45);
+  border: 1px solid rgba(255, 255, 255, .18);
+}
+.mc-bar i {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, #f2c14e, #d9a441);
+  border-radius: 999px;
 }
 .mine-card.locked { opacity: .68; filter: grayscale(.5); }
 .mine-card.here { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-s); }

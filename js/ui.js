@@ -188,7 +188,7 @@ window.UI = (function () {
     root.innerHTML = [
       '<div id="hud"></div>',
       '<div id="stage">',
-      '  <div id="scene-wrap"><canvas id="scene"></canvas><div class="vignette"></div><canvas id="weather-fx"></canvas><div class="scene-badge" id="scene-badge"></div></div>',
+      '  <div id="scene-wrap"><canvas id="scene"></canvas><div class="vignette"></div><canvas id="weather-fx"></canvas></div>',
       '  <div id="view-host"></div>',
       '</div>',
       '<nav id="tabs">' + VIEWS.map(v => '<button class="tab" data-act="nav:' + v.key + '" data-view="' + v.key + '">' + navIconSrc(v.key, v.icon) + v.name + '</button>').join('') + '</nav>',
@@ -235,8 +235,6 @@ window.UI = (function () {
     });
     window.Scene.onClickMine(() => { view = 'mine'; render(); toast('来到矿洞入口', 'info'); });
     if (window.Scene.onClickCrate) window.Scene.onClickCrate(() => { toast('出货箱：仓库卖货页稍后开放，点这里先记下来', 'info'); });
-    const badge = el('scene-badge');
-    if (badge) badge.textContent = mode === '3d' ? '萌版 3D · 固定俯视角' : '等距伪 3D 降级模式';
     window.Scene.refresh(Game.state);
   }
 
@@ -465,7 +463,7 @@ window.UI = (function () {
       const cls = ['plot'];
       if (plot.harvestable) cls.push('ready');
       if (plot.plowed && !plot.cropType) cls.push('plowed');
-      if (!plot.plowed) cls.push('waste');   // 荒地：乱杂草 + 石子
+      if (!plot.plowed) { cls.push('waste'); cls.push('w' + (i % 4)); }   // 第五轮：荒地 4 种杂草/石头排布轮换，不再 24 格一模一样
       if (plot.plowed && !plot.cropType && plot.waterLevel === 0) cls.push('dry');   // 干裂：已耕、无作物、水分 0（只改外观，不改玩法）
       if (selectedPlot === i) cls.push('sel');
       if (plot.waterLevel > 0 && plot.cropType) cls.push('wet');
@@ -475,6 +473,7 @@ window.UI = (function () {
         + '<span class="pi">' + face.icon + '</span>'
         + '<span class="pl">' + face.label + '</span>'
         + (face.fert ? '<span class="fert-dot" title="已施肥（黑色小点）">•••</span>' : '')
+        + (plot.waterLevel > 0 && plot.cropType ? '<span class="wet-dot" title="已浇水">💧</span>' : '')
         + (plot.pest ? '<span class="pest-dot" title="闹田鼠害虫：作物停止生长，可点开田地手动捉虫，养了老鹰它会在清早替你叼走">🐭</span>' : '')
         + '<span class="pidx">' + (Math.floor(i / 6) + 1) + '-' + (i % 6 + 1) + '</span>'
         + '</button>';
@@ -977,6 +976,7 @@ window.UI = (function () {
         '  <div class="mc-h"><span>' + cfg.icon + '</span><b>' + cfg.name + '</b>' + (open ? '' : '<span class="badge warn">冬季开放</span>') + '</div>',
         '  <p class="note">' + cfg.desc + '</p>',
         '  <div class="kv"><span>最深记录</span><b>第 ' + deepest + ' 层 / 共 ' + cfg.maxFloor + ' 层</b></div>',
+        '  <div class="mc-bar" title="已深入 ' + Math.round(deepest / cfg.maxFloor * 100) + '%"><i style="width:' + Math.round(deepest / cfg.maxFloor * 100) + '%"></i></div>',
         open ? '<button class="btn primary" data-act="enter:' + k + '">' + (s.mine.current === k ? '继续深入' : '⛏️ 进入矿洞') + '</button>' : '<button class="btn" disabled>未开放</button>',
         '</div>'
       ].join('');
@@ -1014,16 +1014,20 @@ window.UI = (function () {
 
     return [
       '<div class=\"view-body\">',
-      // 矿山全景：整座山、山脚洞口、灯笼、轨道矿车、铜/银/金/蓝晶矿脉（确认稿 mine v3）
+      // 矿山全景：整座灰岩山、绿苔、金矿脉、蓝水晶、山脚洞口、灯笼、轨道矿车、松树花草（第五轮按确认稿重做）
       '<div class=\"mine-hero\" role=\"img\" aria-label=\"矿山全景\">',
       '  <svg viewBox="0 0 640 300" preserveAspectRatio="xMidYMax slice">',
       '    <rect width="640" height="300" fill="#bfe3f7"/>',
       '    <circle cx="540" cy="52" r="26" fill="#ffe98a"/><circle cx="540" cy="52" r="34" fill="#ffe98a" opacity="0.35"/>',
       '    <g fill="#ffffff" opacity="0.92"><ellipse cx="120" cy="48" rx="52" ry="16"/><ellipse cx="160" cy="40" rx="38" ry="13"/><ellipse cx="330" cy="36" rx="46" ry="13"/></g>',
-      '    <path d="M0 300 L0 190 Q120 60 260 110 Q340 140 420 90 Q540 20 640 120 L640 300 Z" fill="#9a8a7a"/>',
-      '    <path d="M0 300 L0 230 Q140 130 280 170 Q420 200 640 150 L640 300 Z" fill="#8a7a68"/>',
-      '    <path d="M0 300 L0 260 Q180 210 320 240 Q480 265 640 235 L640 300 Z" fill="#7a6a58"/>',
-      '    <g><circle cx="180" cy="170" r="10" fill="#d8a75e"/><circle cx="180" cy="170" r="4" fill="#f2c14e"/><circle cx="430" cy="130" r="9" fill="#c2d0dd"/><circle cx="430" cy="130" r="4" fill="#ffffff"/><circle cx="500" cy="190" r="10" fill="#f2c14e"/><circle cx="500" cy="190" r="4" fill="#ffe98a"/><circle cx="300" cy="210" r="9" fill="#6db7e8"/><circle cx="300" cy="210" r="4" fill="#bfe3f7"/></g>',
+      '    <!-- 山体：灰岩三层（第五轮：灰岩 + 绿苔 + 蓝水晶 + 金矿脉，不用大面积平棕） -->',
+      '    <path d="M0 300 L0 190 Q120 60 260 110 Q340 140 420 90 Q540 20 640 120 L640 300 Z" fill="#a39e94"/>',
+      '    <path d="M0 300 L0 230 Q140 130 280 170 Q420 200 640 150 L640 300 Z" fill="#8d8880"/>',
+      '    <path d="M0 300 L0 260 Q180 210 320 240 Q480 265 640 235 L640 300 Z" fill="#78746c"/>',
+      '    <g stroke="#6f6b62" stroke-width="2" fill="none" opacity="0.7" stroke-linecap="round"><path d="M120 180 L150 220 L135 255"/><path d="M420 130 L450 175 L435 210"/><path d="M520 160 L545 200"/></g>',
+      '    <g fill="#6fae5e" opacity="0.9"><ellipse cx="150" cy="195" rx="34" ry="12"/><ellipse cx="420" cy="130" rx="30" ry="10"/><ellipse cx="540" cy="170" rx="28" ry="11"/><ellipse cx="90" cy="250" rx="30" ry="10"/><ellipse cx="250" cy="250" rx="26" ry="9"/></g>',
+      '    <g stroke="#d9a441" stroke-width="3" fill="none" stroke-linecap="round"><path d="M210 150 L240 185 L225 220"/><path d="M470 110 L500 150"/><path d="M80 230 L110 255"/></g>',
+      '    <g><circle cx="180" cy="170" r="10" fill="#d8a75e"/><circle cx="180" cy="170" r="4" fill="#f2c14e"/><circle cx="430" cy="130" r="9" fill="#c2d0dd"/><circle cx="430" cy="130" r="4" fill="#ffffff"/><circle cx="500" cy="190" r="10" fill="#f2c14e"/><circle cx="500" cy="190" r="4" fill="#ffe98a"/><circle cx="300" cy="210" r="14" fill="#6db7e8" opacity="0.4"/><circle cx="300" cy="210" r="9" fill="#6db7e8"/><circle cx="300" cy="210" r="4" fill="#bfe3f7"/><circle cx="560" cy="120" r="12" fill="#6db7e8" opacity="0.4"/><circle cx="560" cy="120" r="8" fill="#6db7e8"/><circle cx="560" cy="120" r="3.5" fill="#dff1ff"/></g>',
       '    <g><path d="M150 300 L210 300 L210 290 L150 290 Z" fill="#8a6242"/><path d="M170 290 L190 290 L190 300 L170 300 Z" fill="#6b4a30"/></g>',
       '    <path d="M262 300 L284 216 Q320 182 356 216 L378 300 Z" fill="#3a2f2a"/>',
       '    <ellipse cx="320" cy="238" rx="36" ry="44" fill="#241d18"/><path d="M292 238 Q320 200 348 238 Q320 226 292 238Z" fill="#3a2f2a"/>',
@@ -1031,7 +1035,7 @@ window.UI = (function () {
       '    <g stroke="#5e4630" stroke-width="5" stroke-linecap="round"><line x1="330" y1="300" x2="470" y2="300"/><line x1="350" y1="300" x2="490" y2="300"/></g>',
       '    <g stroke="#8a6242" stroke-width="4"><line x1="360" y1="296" x2="360" y2="304"/><line x1="400" y1="296" x2="400" y2="304"/><line x1="440" y1="296" x2="440" y2="304"/></g>',
       '    <g><rect x="392" y="272" width="44" height="24" rx="4" fill="#8a6242"/><rect x="392" y="272" width="44" height="10" rx="4" fill="#a9743f"/><circle cx="404" cy="284" r="5" fill="#3a2f2a"/><circle cx="424" cy="284" r="5" fill="#3a2f2a"/></g>',
-      '    <g><ellipse cx="90" cy="288" rx="26" ry="10" fill="#7ec85a"/><ellipse cx="560" cy="290" rx="30" ry="10" fill="#7ec85a"/><circle cx="90" cy="278" r="6" fill="#ff8fb0"/><circle cx="104" cy="282" r="5" fill="#ffd76a"/><circle cx="560" cy="280" r="6" fill="#ff8fb0"/></g>',
+      '    <g><path d="M40 300 L40 272 L28 288 L52 288 Z" fill="#4f9e3a"/><path d="M40 282 L40 258 L30 276 L50 276 Z" fill="#5cb84a"/><rect x="37" y="288" width="6" height="12" fill="#8a6242"/><path d="M600 300 L600 274 L590 288 L610 288 Z" fill="#4f9e3a"/><path d="M600 284 L600 262 L591 278 L609 278 Z" fill="#5cb84a"/><rect x="597" y="288" width="6" height="12" fill="#8a6242"/><ellipse cx="90" cy="288" rx="26" ry="10" fill="#7ec85a"/><ellipse cx="560" cy="290" rx="30" ry="10" fill="#7ec85a"/><circle cx="90" cy="278" r="6" fill="#ff8fb0"/><circle cx="104" cy="282" r="5" fill="#ffd76a"/><circle cx="560" cy="280" r="6" fill="#ff8fb0"/></g>',
       '  </svg>',
       '  <div class="mine-hero-cap">⛏️ 整座矿山 · 山脚洞口 · 越深矿石越稀有</div>',
       '</div>',

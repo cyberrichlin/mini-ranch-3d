@@ -204,13 +204,34 @@
     };
   }
 
-  /* 第四轮：启动前先预加载 GLB 模型（最多等 9 秒；超时 / 失败都照常进游戏，
-     动物自动回退代码拼模型，绝不卡在加载屏） */
+  /* 第五轮：启动前先等 GLB 全部加载完成（堵 9 秒竞态）。
+   *  旧版 9 秒超时抢跑 + 失败回退代码模型，导致慢网下动物悄悄变成旧模型、整个会话不变回来。
+   *  新版：preloadGLB 全部 settled（失败文件重试一次）后再 boot；启动页显示加载进度；
+   *  若仍有失败，启动后在画面顶部显示可见横幅（列出失败的动物），缺席的动物不出现、也不回退旧模型。 */
+  var GLB_NAMES = { cow: '牛', sheep: '羊', chicken: '鸡', horse: '马', dog: '狗', duck: '鸭子', llama: '羊驼', squirrel: '松鼠' };
+  function showGLBFailBanner(failed) {
+    if (!failed || !failed.length) return;
+    var names = failed.map(function (t) { return GLB_NAMES[t] || t; }).join('、');
+    var bar = document.createElement('div');
+    bar.id = 'glb-fail-banner';
+    bar.innerHTML = '<span>⚠️ 模型加载失败（' + names + '），请检查网络后刷新页面</span><button type="button">知道了</button>';
+    bar.querySelector('button').addEventListener('click', function () { bar.remove(); });
+    document.body.appendChild(bar);
+    window.__glbFailed = failed.slice();
+  }
   function bootWithGLB() {
+    var sub = document.querySelector('.boot-sub');
+    function setProgress(done, total) {
+      if (sub) sub.textContent = '正在加载 3D 模型 ' + done + '/' + total + '，请稍候…';
+    }
     var p = (window.Models && typeof window.Models.preloadGLB === 'function')
-      ? window.Models.preloadGLB() : Promise.resolve();
-    var timeout = new Promise(function (res) { setTimeout(res, 9000); });
-    Promise.race([p, timeout]).then(function () { boot(); });
+      ? window.Models.preloadGLB(setProgress) : Promise.resolve();
+    p.then(function () {
+      boot();
+      if (window.Models && typeof window.Models.glbFailed === 'function') {
+        showGLBFailBanner(window.Models.glbFailed());
+      }
+    });
   }
 
   if (document.readyState === 'loading') {
